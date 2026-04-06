@@ -1,0 +1,10 @@
+{
+  "recipients": [
+    {
+      "email": "holdersav2000@gmail.com",
+      "name": "Holder",
+      "role": "primary"
+    }
+  ],
+  "notes": "Add new recipients here. The Reporter reads this file on every run."
+}

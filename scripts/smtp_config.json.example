@@ -1,0 +1,12 @@
+{
+  "_instructions": "Copy this file to smtp_config.json and fill in your details. Works with Gmail, Outlook, Yahoo, or any SMTP provider.",
+  "host": "smtp.gmail.com",
+  "port": 587,
+  "username": "your@gmail.com",
+  "password": "your-app-password",
+  "from_address": "your@gmail.com",
+  "from_name": "Climate Intelligence Platform",
+  "_gmail_note": "For Gmail use an App Password, not your main password. Go to myaccount.google.com/apppasswords",
+  "_outlook_note": "For Outlook use smtp.office365.com port 587",
+  "_custom_note": "For custom domains use your provider SMTP host"
+}
