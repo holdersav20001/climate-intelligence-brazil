@@ -1,0 +1,26 @@
+# Credentials
+smtp_config.json
+
+# Runtime data
+workspace/articles.jsonl
+workspace/seen_urls.txt
+workspace/ngo_seen.txt
+workspace/finance_seen.txt
+workspace/cop30_seen.txt
+workspace/pending_review/
+workspace/finance_deals/
+workspace/cop30_docs/
+workspace/ngo_reports/
+workspace/submissions/
+workspace/translations/
+workspace/influence_model.json
+workspace/tracked_policies.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# OS
+.DS_Store
+Thumbs.db
