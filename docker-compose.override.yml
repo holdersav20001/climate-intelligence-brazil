@@ -1,0 +1,14 @@
+# docker-compose.override.yml
+# Local development overrides — applied automatically by Docker Compose
+# Exposes postgres:5432 for direct DB access with pgAdmin or DBeaver
+
+services:
+  postgres:
+    ports:
+      - "5432:5432"   # expose for pgAdmin / psql direct access
+
+  api:
+    volumes:
+      - ./api:/app    # hot reload — code changes take effect immediately
+    environment:
+      ENVIRONMENT: development
