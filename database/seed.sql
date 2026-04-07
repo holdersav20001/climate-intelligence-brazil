@@ -144,3 +144,8 @@ INSERT INTO sources (name, url, feed_url, country_code, source_type, language, f
   -- GDELT
   ('GDELT Brazil Energy', 'https://api.gdeltproject.org', 'https://api.gdeltproject.org/api/v2/doc/doc?query=brazil+energy&mode=artlist&maxrecords=25&format=json&timespan=24h', 'BR', 'gdelt', 'en', 'hourly')
 ON CONFLICT (url) DO NOTHING;
+
+-- ── Dev tenant (local auth testing) ──────────────────────────────────────────
+INSERT INTO tenants (name, email, plan, countries, active)
+VALUES ('Climate Intelligence Dev', 'dev@climateintel.br', 'starter', ARRAY['BR'], true)
+ON CONFLICT (email) DO NOTHING;
