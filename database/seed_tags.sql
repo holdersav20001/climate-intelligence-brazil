@@ -38,5 +38,32 @@ INSERT INTO tags (slug, label, category) VALUES
   ('ibama',         'IBAMA',               'actor'),
   -- Geography / social
   ('indigenous',    'Indigenous Territory','policy'),
-  ('amazon',        'Amazon / Amazonia',   'geography')
+  ('amazon',        'Amazon / Amazonia',   'geography'),
+  -- Broad sectors (spec-required)
+  ('energy',        'Energy',              'sector'),
+  ('forest',        'Forests / Deforestation', 'sector'),
+  ('agriculture',   'Agriculture / Land Use',  'sector'),
+  ('water',         'Water Resources',     'sector'),
+  -- Additional policy slugs (spec-required)
+  ('carbon-market', 'Carbon Market',       'policy'),
+  ('net-zero',      'Net Zero',            'policy'),
+  ('just-transition','Just Transition',    'policy'),
+  ('loss-damage',   'Loss & Damage',       'policy'),
+  ('adaptation',    'Climate Adaptation',  'policy'),
+  -- Additional events (spec-required)
+  ('unfccc',        'UNFCCC',              'event'),
+  ('g20',           'G20',                 'event'),
+  ('bilateral',     'Bilateral Agreement', 'event'),
+  -- Broad actor types (spec-required)
+  ('government',    'Government',          'actor'),
+  ('ngo',           'NGO / Civil Society', 'actor'),
+  ('business',      'Business / Industry', 'actor'),
+  ('finance',       'Finance / Investment','actor'),
+  -- Additional geographies (spec-required)
+  ('cerrado',       'Cerrado',             'geography'),
+  ('atlantic-forest','Atlantic Forest',    'geography'),
+  ('pantanal',      'Pantanal',            'geography'),
+  ('brazil',        'Brazil',              'geography'),
+  ('latam',         'Latin America',       'geography'),
+  ('global',        'Global',              'geography')
 ON CONFLICT (slug) DO NOTHING;
