@@ -1,5 +1,6 @@
 # Credentials
 smtp_config.json
+.env
 
 # Runtime data
 workspace/articles.jsonl
