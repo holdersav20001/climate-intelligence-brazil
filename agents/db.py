@@ -221,7 +221,7 @@ class DB:
 
     def insert_source(self, s):
         """Insert a source candidate. Returns the id if inserted, None if already exists."""
-        row_id = s.get("id") or str(__import__('uuid').uuid4())
+        row_id = s.get("id") or new_id()
         try:
             with self.conn.cursor() as cur:
                 cur.execute("""INSERT INTO sources
@@ -239,7 +239,7 @@ class DB:
                 inserted = cur.rowcount > 0
             self.conn.commit()
             return row_id if inserted else None
-        except Exception as e:
+        except psycopg2.Error as e:
             self.conn.rollback()
             print(f"DB error: {e}", file=sys.stderr)
             return None
