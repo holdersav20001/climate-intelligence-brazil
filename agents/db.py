@@ -276,6 +276,38 @@ class DB:
             print(f"DB error: {e}", file=sys.stderr)
             return False
 
+    def link_finding_article(self, finding_id, article_id, relevance_note=None):
+        """Link a finding to a supporting article. Idempotent."""
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("""INSERT INTO finding_articles
+                    (finding_id, article_id, relevance_note, created_at)
+                    VALUES (%s,%s,%s,NOW())
+                    ON CONFLICT (finding_id, article_id) DO NOTHING""",
+                    (finding_id, article_id, relevance_note))
+            self.conn.commit()
+            return True
+        except psycopg2.Error as e:
+            self.conn.rollback()
+            print(f"DB error: {e}", file=sys.stderr)
+            return False
+
+    def link_finding_contact(self, finding_id, contact_id, relevance_note=None):
+        """Link a finding to a relevant contact. Idempotent."""
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("""INSERT INTO finding_contacts
+                    (finding_id, contact_id, relevance_note, created_at)
+                    VALUES (%s,%s,%s,NOW())
+                    ON CONFLICT (finding_id, contact_id) DO NOTHING""",
+                    (finding_id, contact_id, relevance_note))
+            self.conn.commit()
+            return True
+        except psycopg2.Error as e:
+            self.conn.rollback()
+            print(f"DB error: {e}", file=sys.stderr)
+            return False
+
     def insert_report(self, r):
         row_id = r.get("id") or new_id()
         recipients = r.get("recipients", [])
@@ -389,6 +421,16 @@ def cli():
             data["article_id"], data["country_code"],
             data.get("confidence", 0.7), data.get("tagged_by", "analyst"))
         print("inserted" if ok else "exists")
+    elif cmd == "link-finding-article" and len(sys.argv) > 2:
+        data = json.loads(sys.argv[2])
+        ok = db.link_finding_article(
+            data["finding_id"], data["article_id"], data.get("relevance_note"))
+        print("linked" if ok else "exists")
+    elif cmd == "link-finding-contact" and len(sys.argv) > 2:
+        data = json.loads(sys.argv[2])
+        ok = db.link_finding_contact(
+            data["finding_id"], data["contact_id"], data.get("relevance_note"))
+        print("linked" if ok else "exists")
     elif cmd == "insert-report" and len(sys.argv) > 2:
         print(db.insert_report(json.loads(sys.argv[2])))
     elif cmd == "mark-url-seen" and len(sys.argv) > 2:
