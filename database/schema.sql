@@ -5,7 +5,8 @@
 
 SET search_path TO climate;
 
--- ── Time-series tables (partitioned by month) ──────────────────────────────
+-- ── Time-series tables ─────────────────────────────────────────────────────
+-- Note: partitioning removed for MVP simplicity; can be added in Phase 4+
 
 CREATE TABLE IF NOT EXISTS articles (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -32,17 +33,15 @@ CREATE TABLE IF NOT EXISTS articles (
     scout_run_id    UUID,
     analyst_run_id  UUID,
     created_at      TIMESTAMPTZ DEFAULT NOW()
-) PARTITION BY RANGE (run_date);
+);
 
-CREATE TABLE IF NOT EXISTS articles_default PARTITION OF articles DEFAULT;
-
-CREATE INDEX IF NOT EXISTS idx_articles_run_date   ON articles(run_date DESC);
-CREATE INDEX IF NOT EXISTS idx_articles_domain     ON articles(domain);
+CREATE INDEX IF NOT EXISTS idx_articles_run_date     ON articles(run_date DESC);
+CREATE INDEX IF NOT EXISTS idx_articles_domain       ON articles(domain);
 CREATE INDEX IF NOT EXISTS idx_articles_significance ON articles(significance DESC);
-CREATE INDEX IF NOT EXISTS idx_articles_country    ON articles USING GIN(country_codes);
-CREATE INDEX IF NOT EXISTS idx_articles_tags       ON articles USING GIN(tag_slugs);
+CREATE INDEX IF NOT EXISTS idx_articles_country      ON articles USING GIN(country_codes);
+CREATE INDEX IF NOT EXISTS idx_articles_tags         ON articles USING GIN(tag_slugs);
 
--- Full-text search index (Phase 1)
+-- Full-text search index
 CREATE INDEX IF NOT EXISTS idx_articles_fts ON articles
     USING GIN(to_tsvector('english', coalesce(title,'') || ' ' || coalesce(summary,'')));
 
@@ -66,13 +65,11 @@ CREATE TABLE IF NOT EXISTS findings (
     fetched_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     run_date             DATE NOT NULL DEFAULT CURRENT_DATE,
     created_at           TIMESTAMPTZ DEFAULT NOW()
-) PARTITION BY RANGE (run_date);
+);
 
-CREATE TABLE IF NOT EXISTS findings_default PARTITION OF findings DEFAULT;
-
-CREATE INDEX IF NOT EXISTS idx_findings_priority  ON findings(priority);
-CREATE INDEX IF NOT EXISTS idx_findings_run_date  ON findings(run_date DESC);
-CREATE INDEX IF NOT EXISTS idx_findings_country   ON findings USING GIN(country_codes);
+CREATE INDEX IF NOT EXISTS idx_findings_priority ON findings(priority);
+CREATE INDEX IF NOT EXISTS idx_findings_run_date ON findings(run_date DESC);
+CREATE INDEX IF NOT EXISTS idx_findings_country  ON findings USING GIN(country_codes);
 
 CREATE TABLE IF NOT EXISTS ngo_intel (
     id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -89,9 +86,7 @@ CREATE TABLE IF NOT EXISTS ngo_intel (
     fetched_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     run_date                 DATE NOT NULL DEFAULT CURRENT_DATE,
     created_at               TIMESTAMPTZ DEFAULT NOW()
-) PARTITION BY RANGE (run_date);
-
-CREATE TABLE IF NOT EXISTS ngo_intel_default PARTITION OF ngo_intel DEFAULT;
+);
 
 CREATE INDEX IF NOT EXISTS idx_ngo_intel_category ON ngo_intel(organisation_category);
 CREATE INDEX IF NOT EXISTS idx_ngo_intel_run_date ON ngo_intel(run_date DESC);
@@ -115,9 +110,7 @@ CREATE TABLE IF NOT EXISTS finance_deals (
     fetched_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     run_date            DATE NOT NULL DEFAULT CURRENT_DATE,
     created_at          TIMESTAMPTZ DEFAULT NOW()
-) PARTITION BY RANGE (run_date);
-
-CREATE TABLE IF NOT EXISTS finance_deals_default PARTITION OF finance_deals DEFAULT;
+);
 
 CREATE INDEX IF NOT EXISTS idx_finance_type     ON finance_deals(deal_type);
 CREATE INDEX IF NOT EXISTS idx_finance_run_date ON finance_deals(run_date DESC);
@@ -135,9 +128,7 @@ CREATE TABLE IF NOT EXISTS reports (
     recipient_count INTEGER DEFAULT 0,
     paperclip_issue TEXT,
     created_at      TIMESTAMPTZ DEFAULT NOW()
-) PARTITION BY RANGE (run_date);
-
-CREATE TABLE IF NOT EXISTS reports_default PARTITION OF reports DEFAULT;
+);
 
 CREATE INDEX IF NOT EXISTS idx_reports_run_date ON reports(run_date DESC);
 CREATE INDEX IF NOT EXISTS idx_reports_type     ON reports(report_type);
@@ -156,9 +147,7 @@ CREATE TABLE IF NOT EXISTS run_log (
     notes           TEXT,
     run_date        DATE NOT NULL DEFAULT CURRENT_DATE,
     created_at      TIMESTAMPTZ DEFAULT NOW()
-) PARTITION BY RANGE (run_date);
-
-CREATE TABLE IF NOT EXISTS run_log_default PARTITION OF run_log DEFAULT;
+);
 
 CREATE INDEX IF NOT EXISTS idx_run_log_agent   ON run_log(agent_name);
 CREATE INDEX IF NOT EXISTS idx_run_log_started ON run_log(started_at DESC);
@@ -166,15 +155,15 @@ CREATE INDEX IF NOT EXISTS idx_run_log_started ON run_log(started_at DESC);
 -- ── Reference tables (permanent, never archived) ───────────────────────────
 
 CREATE TABLE IF NOT EXISTS countries (
-    code        TEXT PRIMARY KEY,   -- ISO 3166-1 alpha-2: BR, CO, DE...
+    code        TEXT PRIMARY KEY,
     name        TEXT NOT NULL,
-    region      TEXT,               -- south_america, europe, asia, africa, global
+    region      TEXT,
     active      BOOLEAN DEFAULT true
 );
 
 CREATE TABLE IF NOT EXISTS tags (
     slug        TEXT PRIMARY KEY,
-    category    TEXT NOT NULL,      -- sector, geography, actor_type, policy_stage, topic, urgency, company
+    category    TEXT NOT NULL,
     label       TEXT NOT NULL,
     description TEXT
 );
@@ -186,16 +175,16 @@ CREATE TABLE IF NOT EXISTS sources (
     feed_url        TEXT,
     country_code    TEXT REFERENCES countries(code),
     sector          TEXT[] DEFAULT '{}',
-    source_type     TEXT,           -- rss | gdelt | hash_monitor | social
+    source_type     TEXT,
     language        TEXT DEFAULT 'en',
     fetch_frequency TEXT DEFAULT 'hourly',
     active          BOOLEAN DEFAULT true,
-    status          TEXT DEFAULT 'active', -- active | candidate | rejected
+    status          TEXT DEFAULT 'active',
     reliability     FLOAT DEFAULT 0.8,
     last_fetched    TIMESTAMPTZ,
     last_successful TIMESTAMPTZ,
     fail_count      INTEGER DEFAULT 0,
-    discovered_by   TEXT,           -- scout_discovery | manual | link_extraction
+    discovered_by   TEXT,
     notes           TEXT,
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
@@ -245,8 +234,8 @@ CREATE TABLE IF NOT EXISTS policies (
     created_at              TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_policies_status   ON policies(status);
-CREATE INDEX IF NOT EXISTS idx_policies_consult  ON policies(consultation_open, consultation_deadline);
+CREATE INDEX IF NOT EXISTS idx_policies_status  ON policies(status);
+CREATE INDEX IF NOT EXISTS idx_policies_consult ON policies(consultation_open, consultation_deadline);
 
 CREATE TABLE IF NOT EXISTS tenants (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -278,7 +267,7 @@ CREATE TABLE IF NOT EXISTS seen_urls (
 -- ── Junction tables ────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS article_countries (
-    article_id  UUID REFERENCES articles(id) ON DELETE CASCADE,
+    article_id   UUID REFERENCES articles(id) ON DELETE CASCADE,
     country_code TEXT REFERENCES countries(code),
     PRIMARY KEY (article_id, country_code)
 );
@@ -297,8 +286,8 @@ CREATE TABLE IF NOT EXISTS contact_countries (
 );
 
 CREATE TABLE IF NOT EXISTS contact_tags (
-    contact_id  UUID REFERENCES contacts(id) ON DELETE CASCADE,
-    tag_slug    TEXT REFERENCES tags(slug),
+    contact_id UUID REFERENCES contacts(id) ON DELETE CASCADE,
+    tag_slug   TEXT REFERENCES tags(slug),
     PRIMARY KEY (contact_id, tag_slug)
 );
 
@@ -309,49 +298,49 @@ CREATE TABLE IF NOT EXISTS finding_countries (
 );
 
 CREATE TABLE IF NOT EXISTS finding_tags (
-    finding_id  UUID REFERENCES findings(id) ON DELETE CASCADE,
-    tag_slug    TEXT REFERENCES tags(slug),
+    finding_id UUID REFERENCES findings(id) ON DELETE CASCADE,
+    tag_slug   TEXT REFERENCES tags(slug),
     PRIMARY KEY (finding_id, tag_slug)
 );
 
 -- ── Cross-reference tables ─────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS finding_articles (
-    finding_id  UUID REFERENCES findings(id) ON DELETE CASCADE,
-    article_id  UUID REFERENCES articles(id) ON DELETE CASCADE,
+    finding_id UUID REFERENCES findings(id) ON DELETE CASCADE,
+    article_id UUID REFERENCES articles(id) ON DELETE CASCADE,
     PRIMARY KEY (finding_id, article_id)
 );
 
 CREATE TABLE IF NOT EXISTS finding_contacts (
-    finding_id  UUID REFERENCES findings(id) ON DELETE CASCADE,
-    contact_id  UUID REFERENCES contacts(id) ON DELETE CASCADE,
+    finding_id UUID REFERENCES findings(id) ON DELETE CASCADE,
+    contact_id UUID REFERENCES contacts(id) ON DELETE CASCADE,
     PRIMARY KEY (finding_id, contact_id)
 );
 
 -- ── Tenant-specific tables ─────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS contact_access (
-    tenant_id   UUID REFERENCES tenants(id) ON DELETE CASCADE,
-    contact_id  UUID REFERENCES contacts(id) ON DELETE CASCADE,
-    ngo_access  INTEGER DEFAULT 1 CHECK (ngo_access BETWEEN 1 AND 5),
-    notes       TEXT,
-    updated_at  TIMESTAMPTZ DEFAULT NOW(),
+    tenant_id  UUID REFERENCES tenants(id) ON DELETE CASCADE,
+    contact_id UUID REFERENCES contacts(id) ON DELETE CASCADE,
+    ngo_access INTEGER DEFAULT 1 CHECK (ngo_access BETWEEN 1 AND 5),
+    notes      TEXT,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (tenant_id, contact_id)
 );
 
 CREATE TABLE IF NOT EXISTS tenant_filters (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id   UUID REFERENCES tenants(id) ON DELETE CASCADE,
-    name        TEXT NOT NULL,
-    countries   TEXT[] DEFAULT '{}',
-    tags        TEXT[] DEFAULT '{}',
-    created_at  TIMESTAMPTZ DEFAULT NOW()
+    id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+    name      TEXT NOT NULL,
+    countries TEXT[] DEFAULT '{}',
+    tags      TEXT[] DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS tenant_article_status (
-    tenant_id   UUID REFERENCES tenants(id) ON DELETE CASCADE,
-    article_id  UUID REFERENCES articles(id) ON DELETE CASCADE,
-    status      TEXT DEFAULT 'unread' CHECK (status IN ('unread','read','saved','actioned')),
-    updated_at  TIMESTAMPTZ DEFAULT NOW(),
+    tenant_id  UUID REFERENCES tenants(id) ON DELETE CASCADE,
+    article_id UUID REFERENCES articles(id) ON DELETE CASCADE,
+    status     TEXT DEFAULT 'unread' CHECK (status IN ('unread','read','saved','actioned')),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (tenant_id, article_id)
 );
