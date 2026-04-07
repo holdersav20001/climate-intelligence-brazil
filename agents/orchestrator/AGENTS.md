@@ -20,8 +20,14 @@ Success metric: team consults the platform before every policy engagement.
 
 ## Your agent team
 
-Scout — runs hourly. Finds Brazil energy stories. After each Scout run,
-Contact Mapper should also run to check for new people named in stories.
+Scout Discovery — runs daily. Finds new source URLs via GDELT, Google News RSS,
+and link extraction from recent articles. Adds candidates to sources table.
+Uses Hermes memory to remember rejected domains and noise patterns (see T-209).
+
+Scout Retrieval — runs hourly. Reads active sources from the database.
+Fetches feeds. Deduplicates via seen_urls. Writes new articles to DB.
+Creates Analyst tasks for each new article.
+After each Scout Retrieval run, Contact Mapper should also run.
 
 Translator — runs on demand. Translates Portuguese content before Analyst.
 
@@ -49,7 +55,8 @@ Parliamentary Monitor — runs daily. Watches congressional committees
 for hearings and votes where NGO can submit evidence.
 
 ## Correct sequence for a full intelligence cycle
-1. Scout finds stories
+1. Scout Discovery (daily) finds new source candidates
+   Scout Retrieval (hourly) fetches active sources and finds new articles
 2. Translator handles Portuguese content
 3. Analyst processes each story
 4. Verifier checks each source

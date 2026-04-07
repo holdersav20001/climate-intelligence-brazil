@@ -1,3 +1,7 @@
+> **DEPRECATED as of Phase 2.** This agent has been split into Scout Discovery (daily)
+> and Scout Retrieval (hourly). Do not run this agent. See agents/scout-discovery/ and
+> agents/scout-retrieval/.
+
 ---
 name: "Scout"
 title: "News & Source Monitor"

@@ -219,6 +219,31 @@ class DB:
         ))
         return row_id
 
+    def insert_source(self, s):
+        """Insert a source candidate. Returns the id if inserted, None if already exists."""
+        row_id = s.get("id") or str(__import__('uuid').uuid4())
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("""INSERT INTO sources
+                    (id, url, name, feed_type, status, country_code, language,
+                     discovered_by, credibility_tier, notes, created_at, updated_at)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW(),NOW())
+                    ON CONFLICT (url) DO NOTHING""", (
+                    row_id, s.get("url"), s.get("name"),
+                    s.get("feed_type", "rss"),
+                    s.get("status", "candidate"),
+                    s.get("country_code"), s.get("language", "en"),
+                    s.get("discovered_by", "manual"),
+                    s.get("credibility_tier", "medium"),
+                    s.get("notes")))
+                inserted = cur.rowcount > 0
+            self.conn.commit()
+            return row_id if inserted else None
+        except Exception as e:
+            self.conn.rollback()
+            print(f"DB error: {e}", file=sys.stderr)
+            return None
+
     def insert_report(self, r):
         row_id = r.get("id") or new_id()
         recipients = r.get("recipients", [])
@@ -317,6 +342,9 @@ def cli():
         print(db.insert_ngo_intel(json.loads(sys.argv[2])))
     elif cmd == "insert-finance-deal" and len(sys.argv) > 2:
         print(db.insert_finance_deal(json.loads(sys.argv[2])))
+    elif cmd == "insert-source" and len(sys.argv) > 2:
+        result = db.insert_source(json.loads(sys.argv[2]))
+        print(result if result else "exists")
     elif cmd == "insert-report" and len(sys.argv) > 2:
         print(db.insert_report(json.loads(sys.argv[2])))
     elif cmd == "mark-url-seen" and len(sys.argv) > 2:
