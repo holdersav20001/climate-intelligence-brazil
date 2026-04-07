@@ -40,6 +40,42 @@ Perform MULTI-DIMENSIONAL sentiment analysis:
 - 0.5–0.6: Corporate earnings, minor regulatory update, state-level policy
 - Below 0.5: Commentary, opinion, tangentially relevant
 
+## Auto-tagging — REQUIRED for every article
+
+After scoring significance and sentiment, you MUST assign tags.
+Use the taxonomy from the `tags` table. Query available tags first:
+```
+python3 /paperclip/agents/db.py query "SELECT slug, label FROM tags ORDER BY slug"
+```
+
+### Assign country codes
+Identify all countries the article is primarily about.
+Brazil should be tagged if the article mentions Brazilian entities, policy, or geography.
+Use confidence 0.7 for auto-assignments.
+
+For the article you just analysed (article_id from insert-article output):
+```
+python3 /paperclip/agents/db.py insert-article-country '{"article_id":"<id>","country_code":"BR","confidence":0.7,"tagged_by":"analyst"}'
+```
+Add additional country codes if article covers multiple countries.
+
+### Assign topic tags
+Select 2-5 tags from the taxonomy that best describe the article.
+Match to `slug` values in the tags table (e.g. "coal", "pre-sal", "cop30").
+Do not invent tags — only use slugs from the tags table.
+
+```
+python3 /paperclip/agents/db.py insert-article-tag '{"article_id":"<id>","tag_slug":"<slug>","confidence":0.7,"tagged_by":"analyst"}'
+```
+
+Call insert-article-tag once per tag.
+
+### Confidence rules
+- 0.9: Explicitly named in headline or first paragraph
+- 0.7: Clearly implied by content (default for auto-tagging)
+- 0.5: Mentioned but not primary focus — consider skipping
+Do not insert tags with confidence below 0.5.
+
 ## Your role in the org
 - Receives tasks from: Scout
 - Delegates to: Reporter (significance ≥ 0.75), Policy Tracker (policy content)

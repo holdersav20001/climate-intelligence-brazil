@@ -244,6 +244,38 @@ class DB:
             print(f"DB error: {e}", file=sys.stderr)
             return None
 
+    def insert_article_tag(self, article_id, tag_slug, confidence=0.7, tagged_by="analyst"):
+        """Tag an article with a topic slug. Idempotent."""
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("""INSERT INTO article_tags
+                    (article_id, tag_slug, confidence, tagged_by, created_at)
+                    VALUES (%s,%s,%s,%s,NOW())
+                    ON CONFLICT (article_id, tag_slug) DO NOTHING""",
+                    (article_id, tag_slug, confidence, tagged_by))
+            self.conn.commit()
+            return True
+        except psycopg2.Error as e:
+            self.conn.rollback()
+            print(f"DB error: {e}", file=sys.stderr)
+            return False
+
+    def insert_article_country(self, article_id, country_code, confidence=0.7, tagged_by="analyst"):
+        """Associate an article with a country code. Idempotent."""
+        try:
+            with self.conn.cursor() as cur:
+                cur.execute("""INSERT INTO article_countries
+                    (article_id, country_code, confidence, tagged_by, created_at)
+                    VALUES (%s,%s,%s,%s,NOW())
+                    ON CONFLICT (article_id, country_code) DO NOTHING""",
+                    (article_id, country_code, confidence, tagged_by))
+            self.conn.commit()
+            return True
+        except psycopg2.Error as e:
+            self.conn.rollback()
+            print(f"DB error: {e}", file=sys.stderr)
+            return False
+
     def insert_report(self, r):
         row_id = r.get("id") or new_id()
         recipients = r.get("recipients", [])
@@ -345,6 +377,18 @@ def cli():
     elif cmd == "insert-source" and len(sys.argv) > 2:
         result = db.insert_source(json.loads(sys.argv[2]))
         print(result if result else "exists")
+    elif cmd == "insert-article-tag" and len(sys.argv) > 2:
+        data = json.loads(sys.argv[2])
+        ok = db.insert_article_tag(
+            data["article_id"], data["tag_slug"],
+            data.get("confidence", 0.7), data.get("tagged_by", "analyst"))
+        print("inserted" if ok else "exists")
+    elif cmd == "insert-article-country" and len(sys.argv) > 2:
+        data = json.loads(sys.argv[2])
+        ok = db.insert_article_country(
+            data["article_id"], data["country_code"],
+            data.get("confidence", 0.7), data.get("tagged_by", "analyst"))
+        print("inserted" if ok else "exists")
     elif cmd == "insert-report" and len(sys.argv) > 2:
         print(db.insert_report(json.loads(sys.argv[2])))
     elif cmd == "mark-url-seen" and len(sys.argv) > 2:
