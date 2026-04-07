@@ -9,7 +9,7 @@ locally first. A failed email never blocks or fails the run.
 ## STEP 1 — ALWAYS DO THIS FIRST
 
 Save the completed report to:
-/home/holder/.paperclip/instances/default/companies/d54903c8-880c-48ed-ba9f-6fd2bb571aef/workspace/pending_review/[YYYY-MM-DD]_report.md
+/paperclip/agents/workspace/pending_review/[YYYY-MM-DD]_report.md
 
 This happens unconditionally before any email attempt.
 
@@ -19,9 +19,9 @@ This happens unconditionally before any email attempt.
 
 Run this command to send the email:
 
-python3 /home/holder/.paperclip/instances/default/companies/d54903c8-880c-48ed-ba9f-6fd2bb571aef/workspace/send_email.py \
+python3 /paperclip/agents/workspace/send_email.py \
   --subject "Brazil Energy Intelligence — [date]" \
-  --body-file /home/holder/.paperclip/instances/default/companies/d54903c8-880c-48ed-ba9f-6fd2bb571aef/workspace/pending_review/[filename]
+  --body-file /paperclip/agents/workspace/pending_review/[filename]
 
 The script reads recipients from mailing_list.json and SMTP settings from
 smtp_config.json — both in the workspace. No credentials are hardcoded.
@@ -66,3 +66,24 @@ If smtp_config.json missing:
 - Never hardcode email addresses or credentials.
 - Recipients come from mailing_list.json only.
 - SMTP credentials come from smtp_config.json only.
+
+## CRITICAL: Database writes
+Use db.py to persist structured intelligence to PostgreSQL.
+The database URL is read automatically from $CLIMATE_DATABASE_URL.
+
+Write a finding:
+  python3 /paperclip/agents/db.py insert-finding '{"agent":"reporter","priority":"HIGH","title":"...","body":"...","source_url":"..."}'
+
+Write an article:
+  python3 /paperclip/agents/db.py insert-article '{"url":"...","title":"...","summary":"...","source_name":"..."}'
+
+Check if URL already seen (deduplication):
+  python3 /paperclip/agents/db.py is-url-seen "https://..."
+
+Mark URL seen after processing:
+  python3 /paperclip/agents/db.py mark-url-seen "https://..." "reporter"
+
+Log a completed run:
+  python3 /paperclip/agents/db.py log-run '{"agent_name":"reporter","status":"succeeded","items_found":3}'
+
+Do NOT reference intelligence.db. Do NOT use SQLite. All data goes to PostgreSQL via db.py.
