@@ -11,6 +11,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from .routes import articles, findings, contacts, sources, reports, stats, ws
+from .routes import auth as auth_routes
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -35,6 +36,7 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
+app.include_router(auth_routes.router)
 app.include_router(articles.router)
 app.include_router(findings.router)
 app.include_router(contacts.router)

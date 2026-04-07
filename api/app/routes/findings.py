@@ -1,12 +1,11 @@
 # api/app/routes/findings.py
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
 from typing import Optional
 from ..models import FindingOut, PaginatedResponse
 from ..db import query
+from ..auth import get_current_user, CurrentUser
 
 router = APIRouter(prefix="/findings", tags=["findings"])
-
-DEV_TENANT_COUNTRIES = ["BR"]
 
 
 @router.get("", response_model=PaginatedResponse)
@@ -17,9 +16,10 @@ def list_findings(
     agent: Optional[str] = None,
     status: Optional[str] = None,
     coalition_opportunity: Optional[bool] = None,
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     filters = ["country_codes && %s::text[]"]
-    params: list = [DEV_TENANT_COUNTRIES]
+    params: list = [current_user.tenant_countries]
 
     if priority:
         filters.append("priority = %s")

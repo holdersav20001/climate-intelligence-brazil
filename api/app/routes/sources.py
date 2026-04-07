@@ -1,20 +1,20 @@
 # api/app/routes/sources.py
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from ..models import SourceOut, PaginatedResponse
 from ..db import query, execute
+from ..auth import get_current_user, CurrentUser
 
 router = APIRouter(prefix="/sources", tags=["sources"])
-
-DEV_TENANT_COUNTRIES = ["BR"]
 
 
 @router.get("", response_model=PaginatedResponse)
 def list_sources(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=500),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     filters = ["country_code = ANY(%s::text[])"]
-    params: list = [DEV_TENANT_COUNTRIES]
+    params: list = [current_user.tenant_countries]
     where = " AND ".join(filters)
     offset = (page - 1) * page_size
 
@@ -42,10 +42,10 @@ def list_sources(
 
 
 @router.post("/{source_id}/approve", status_code=200)
-def approve_source(source_id: str):
+def approve_source(source_id: str, current_user: CurrentUser = Depends(get_current_user)):
     rows = query(
         "SELECT id FROM sources WHERE id = %s AND country_code = ANY(%s::text[])",
-        (source_id, DEV_TENANT_COUNTRIES),
+        (source_id, current_user.tenant_countries),
     )
     if not rows:
         raise HTTPException(status_code=404, detail="Source not found")
@@ -58,10 +58,10 @@ def approve_source(source_id: str):
 
 
 @router.post("/{source_id}/reject", status_code=200)
-def reject_source(source_id: str):
+def reject_source(source_id: str, current_user: CurrentUser = Depends(get_current_user)):
     rows = query(
         "SELECT id FROM sources WHERE id = %s AND country_code = ANY(%s::text[])",
-        (source_id, DEV_TENANT_COUNTRIES),
+        (source_id, current_user.tenant_countries),
     )
     if not rows:
         raise HTTPException(status_code=404, detail="Source not found")

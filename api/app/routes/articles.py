@@ -1,12 +1,11 @@
 # api/app/routes/articles.py
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
 from typing import Optional
 from ..models import ArticleOut, PaginatedResponse
 from ..db import query
+from ..auth import get_current_user, CurrentUser
 
 router = APIRouter(prefix="/articles", tags=["articles"])
-
-DEV_TENANT_COUNTRIES = ["BR"]
 
 
 @router.get("", response_model=PaginatedResponse)
@@ -19,9 +18,10 @@ def list_articles(
     verified: Optional[bool] = None,
     run_date: Optional[str] = None,
     country: Optional[str] = None,
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     filters = ["country_codes && %s::text[]"]
-    params: list = [DEV_TENANT_COUNTRIES]
+    params: list = [current_user.tenant_countries]
 
     if domain:
         filters.append("domain = %s")
@@ -74,7 +74,7 @@ def list_articles(
 
 
 @router.get("/{article_id}", response_model=ArticleOut)
-def get_article(article_id: str):
+def get_article(article_id: str, current_user: CurrentUser = Depends(get_current_user)):
     rows = query(
         """
         SELECT id::text, url, title, summary, source_name, domain, topic,
@@ -85,7 +85,7 @@ def get_article(article_id: str):
                fetched_at, published_at, run_date
         FROM articles WHERE id = %s AND country_codes && %s::text[]
         """,
-        (article_id, DEV_TENANT_COUNTRIES),
+        (article_id, current_user.tenant_countries),
     )
     if not rows:
         from fastapi import HTTPException

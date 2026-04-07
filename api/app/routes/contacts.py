@@ -1,12 +1,11 @@
 # api/app/routes/contacts.py
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
 from typing import Optional
 from ..models import ContactOut, PaginatedResponse
 from ..db import query
+from ..auth import get_current_user, CurrentUser
 
 router = APIRouter(prefix="/contacts", tags=["contacts"])
-
-DEV_TENANT_COUNTRIES = ["BR"]
 
 
 @router.get("", response_model=PaginatedResponse)
@@ -15,10 +14,11 @@ def list_contacts(
     page_size: int = Query(20, ge=1, le=100),
     organisation_type: Optional[str] = None,
     min_influence: Optional[float] = None,
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     # Filter via contact_countries junction table
     filters = ["id IN (SELECT contact_id FROM contact_countries WHERE country_code = ANY(%s::text[]))"]
-    params: list = [DEV_TENANT_COUNTRIES]
+    params: list = [current_user.tenant_countries]
 
     if organisation_type:
         filters.append("organisation_type = %s")
