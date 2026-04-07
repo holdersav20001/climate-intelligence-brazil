@@ -38,6 +38,10 @@ class TokenResponse(BaseModel):
     refresh_token: str = ""
 
 
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
 def _issue_local_token(email: str, tenant_id: str, countries: list[str]) -> str:
     """Issue a local JWT for development use."""
     import jwt
@@ -131,7 +135,7 @@ async def signup(body: SignupRequest):
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(refresh_token: str):
+async def refresh_token(body: RefreshRequest):
     if AUTH_PROVIDER == "local":
         raise HTTPException(status_code=400, detail="Local auth does not use refresh tokens. Call /auth/login again.")
 
@@ -142,7 +146,7 @@ async def refresh_token(refresh_token: str):
         resp = await client.post(
             f"{SUPABASE_URL}/auth/v1/token?grant_type=refresh_token",
             headers={"apikey": SUPABASE_ANON_KEY, "Content-Type": "application/json"},
-            json={"refresh_token": refresh_token},
+            json={"refresh_token": body.refresh_token},
             timeout=10,
         )
 
