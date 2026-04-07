@@ -44,7 +44,7 @@ Append the following to the end of the file:
 ```sql
 -- Sources: feed URLs that Scout Discovery finds and Scout Retrieval fetches
 CREATE TABLE IF NOT EXISTS sources (
-    id TEXT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     url TEXT NOT NULL UNIQUE,
     name TEXT,
     feed_type TEXT,          -- rss | atom | gdelt | google_news | html
@@ -53,12 +53,12 @@ CREATE TABLE IF NOT EXISTS sources (
     language TEXT DEFAULT 'en',
     discovered_by TEXT,      -- link_extraction | gdelt | google_news_rss | manual
     credibility_tier TEXT,   -- high | medium | low
-    last_fetched TEXT,
+    last_fetched TIMESTAMPTZ,
     fetch_count INTEGER DEFAULT 0,
     error_count INTEGER DEFAULT 0,
     notes TEXT,
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_sources_status ON sources(status);
 CREATE INDEX IF NOT EXISTS idx_sources_last_fetched ON sources(last_fetched);
@@ -272,7 +272,7 @@ For each new article inserted, create a Paperclip task for the Analyst agent:
 ## Step 6: Update source last_fetched
 After processing each source, update its last_fetched timestamp:
 ```
-python3 db.py query "UPDATE sources SET last_fetched=datetime('now'), fetch_count=fetch_count+1 WHERE id='<source_id>'"
+python3 db.py query "UPDATE sources SET last_fetched=NOW(), fetch_count=fetch_count+1 WHERE id='<source_id>'"
 ```
 
 ## Step 7: Log run
@@ -440,11 +440,11 @@ Append to the end of the file:
 ```sql
 -- Tags taxonomy: topic labels applied to articles
 CREATE TABLE IF NOT EXISTS tags (
-    id TEXT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     slug TEXT NOT NULL UNIQUE,  -- e.g. coal, solar, cop30, bndes, offshore-wind
     label TEXT NOT NULL,
     category TEXT,              -- sector | policy | actor | geography | event
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Countries reference table
@@ -460,7 +460,7 @@ CREATE TABLE IF NOT EXISTS article_tags (
     tag_slug TEXT NOT NULL REFERENCES tags(slug) ON DELETE CASCADE,
     confidence REAL DEFAULT 0.7,
     tagged_by TEXT DEFAULT 'analyst',  -- analyst | human
-    created_at TEXT DEFAULT (datetime('now')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (article_id, tag_slug)
 );
 CREATE INDEX IF NOT EXISTS idx_article_tags_slug ON article_tags(tag_slug);
@@ -471,7 +471,7 @@ CREATE TABLE IF NOT EXISTS article_countries (
     country_code TEXT NOT NULL REFERENCES countries(code) ON DELETE CASCADE,
     confidence REAL DEFAULT 0.7,
     tagged_by TEXT DEFAULT 'analyst',
-    created_at TEXT DEFAULT (datetime('now')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (article_id, country_code)
 );
 CREATE INDEX IF NOT EXISTS idx_article_countries_code ON article_countries(country_code);
@@ -686,7 +686,7 @@ CREATE TABLE IF NOT EXISTS finding_articles (
     finding_id TEXT NOT NULL REFERENCES findings(id) ON DELETE CASCADE,
     article_id TEXT NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
     relevance_note TEXT,
-    created_at TEXT DEFAULT (datetime('now')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (finding_id, article_id)
 );
 CREATE INDEX IF NOT EXISTS idx_finding_articles_finding ON finding_articles(finding_id);
@@ -697,7 +697,7 @@ CREATE TABLE IF NOT EXISTS finding_contacts (
     finding_id TEXT NOT NULL REFERENCES findings(id) ON DELETE CASCADE,
     contact_id TEXT NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
     relevance_note TEXT,
-    created_at TEXT DEFAULT (datetime('now')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (finding_id, contact_id)
 );
 CREATE INDEX IF NOT EXISTS idx_finding_contacts_finding ON finding_contacts(finding_id);

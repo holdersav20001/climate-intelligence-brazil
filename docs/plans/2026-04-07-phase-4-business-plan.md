@@ -35,10 +35,10 @@ Create three Stripe subscription products, wire up a Checkout session endpoint, 
 
 | Action | Path |
 |---|---|
-| CREATE | `backend/routers/billing.py` |
-| CREATE | `backend/routers/webhooks.py` |
-| MODIFY | `backend/main.py` — register routers |
-| MODIFY | `backend/db.py` — add `update_tenant_plan()` helper |
+| CREATE | `api/routers/billing.py` |
+| CREATE | `api/routers/webhooks.py` |
+| MODIFY | `api/main.py` — register routers |
+| MODIFY | `api/db.py` — add `update_tenant_plan()` helper |
 | MODIFY | `docker-compose.yml` — add env vars |
 | MODIFY | `.env.example` — document new keys |
 
@@ -91,11 +91,11 @@ FRONTEND_URL=http://localhost:3000
 
 ```bash
 pip install stripe
-# Add to backend/requirements.txt:
+# Add to api/requirements.txt:
 # stripe>=8.0.0
 ```
 
-### Step 4 — Create `backend/routers/billing.py`
+### Step 4 — Create `api/routers/billing.py`
 
 ```python
 import os
@@ -149,7 +149,7 @@ async def create_checkout_session(
     return {"checkout_url": session.url}
 ```
 
-### Step 5 — Create `backend/routers/webhooks.py`
+### Step 5 — Create `api/routers/webhooks.py`
 
 ```python
 import os
@@ -200,7 +200,7 @@ async def stripe_webhook(request: Request):
     return {"received": True}
 ```
 
-### Step 6 — Add DB helpers to `backend/db.py`
+### Step 6 — Add DB helpers to `api/db.py`
 
 ```python
 async def update_tenant_plan(
@@ -232,7 +232,7 @@ async def deactivate_tenant(stripe_customer: str):
         )
 ```
 
-### Step 7 — Register routers in `backend/main.py`
+### Step 7 — Register routers in `api/main.py`
 
 ```python
 from backend.routers.billing import router as billing_router
@@ -288,7 +288,7 @@ curl "http://localhost:8000/articles?countries=CO,BR,AR" \
 ### Commit
 
 ```bash
-git add backend/routers/billing.py backend/routers/webhooks.py backend/main.py backend/db.py .env.example
+git add api/routers/billing.py api/routers/webhooks.py api/main.py api/db.py .env.example
 git commit -m "feat(T-401): Stripe billing — checkout session, webhooks, plan enforcement"
 ```
 
@@ -310,13 +310,13 @@ A 5-step React wizard that fires after first login when `tenant.countries` is em
 | CREATE | `frontend/src/components/Onboarding/steps/SectorsStep.tsx` |
 | CREATE | `frontend/src/components/Onboarding/steps/EmailStep.tsx` |
 | CREATE | `frontend/src/components/Onboarding/steps/ConfirmStep.tsx` |
-| CREATE | `backend/routers/onboarding.py` |
-| MODIFY | `backend/main.py` — register onboarding router |
+| CREATE | `api/routers/onboarding.py` |
+| MODIFY | `api/main.py` — register onboarding router |
 | MODIFY | `frontend/src/App.tsx` — show wizard when `tenant.countries` is empty |
 
 ### Step 1 — FastAPI endpoint `POST /onboarding/complete`
 
-Create `backend/routers/onboarding.py`:
+Create `api/routers/onboarding.py`:
 
 ```python
 from fastapi import APIRouter, Depends, HTTPException
@@ -519,7 +519,7 @@ psql $DATABASE_URL -c "SELECT * FROM climate.tenant_filters WHERE tenant_id=(SEL
 ### Commit
 
 ```bash
-git add frontend/src/components/Onboarding/ backend/routers/onboarding.py backend/main.py
+git add frontend/src/components/Onboarding/ api/routers/onboarding.py api/main.py
 git commit -m "feat(T-402): onboarding wizard — 5-step flow with country/sector selection"
 ```
 
@@ -540,9 +540,9 @@ A settings modal (accessible from the header) lets tenants manage country prefer
 | CREATE | `frontend/src/components/Settings/tabs/EmailSettings.tsx` |
 | CREATE | `frontend/src/components/Settings/tabs/PlanSettings.tsx` |
 | CREATE | `frontend/src/components/Settings/tabs/ApiKeySettings.tsx` |
-| CREATE | `backend/routers/settings.py` |
-| MODIFY | `backend/main.py` — register settings router |
-| MODIFY | `backend/db.py` — add `api_key_hash` column migration |
+| CREATE | `api/routers/settings.py` |
+| MODIFY | `api/main.py` — register settings router |
+| MODIFY | `api/db.py` — add `api_key_hash` column migration |
 | MODIFY | `frontend/src/components/Header.tsx` — add settings button |
 
 ### Step 1 — Database migration
@@ -552,7 +552,7 @@ A settings modal (accessible from the header) lets tenants manage country prefer
 ALTER TABLE climate.tenants ADD COLUMN IF NOT EXISTS api_key_hash TEXT;
 ```
 
-### Step 2 — FastAPI settings router `backend/routers/settings.py`
+### Step 2 — FastAPI settings router `api/routers/settings.py`
 
 ```python
 import os
@@ -752,7 +752,7 @@ psql $DATABASE_URL -c "SELECT api_key_hash IS NOT NULL FROM climate.tenants WHER
 ### Commit
 
 ```bash
-git add frontend/src/components/Settings/ backend/routers/settings.py backend/main.py
+git add frontend/src/components/Settings/ api/routers/settings.py api/main.py
 git commit -m "feat(T-403): subscriber settings — countries, email, plan, API key management"
 ```
 
@@ -768,10 +768,10 @@ Track API calls per tenant per month. Enforce monthly quotas. Alert at 80% usage
 
 | Action | Path |
 |---|---|
-| CREATE | `backend/middleware/usage_metering.py` |
+| CREATE | `api/middleware/usage_metering.py` |
 | CREATE | `db/migrations/004_api_usage.sql` |
-| MODIFY | `backend/main.py` — add middleware |
-| MODIFY | `backend/routers/settings.py` — expose usage stats |
+| MODIFY | `api/main.py` — add middleware |
+| MODIFY | `api/routers/settings.py` — expose usage stats |
 
 ### Step 1 — Database migration
 
@@ -795,7 +795,7 @@ Run:
 psql $DATABASE_URL -f db/migrations/004_api_usage.sql
 ```
 
-### Step 2 — Middleware `backend/middleware/usage_metering.py`
+### Step 2 — Middleware `api/middleware/usage_metering.py`
 
 ```python
 import asyncio
@@ -884,7 +884,7 @@ async def send_quota_warning(tenant: dict, count: int, quota: int):
     )
 ```
 
-### Step 3 — Register middleware in `backend/main.py`
+### Step 3 — Register middleware in `api/main.py`
 
 ```python
 from backend.middleware.usage_metering import UsageMeteringMiddleware
@@ -942,7 +942,7 @@ curl http://localhost:8000/articles -H "Authorization: Bearer <starter_jwt>"
 ### Commit
 
 ```bash
-git add backend/middleware/usage_metering.py db/migrations/004_api_usage.sql backend/main.py
+git add api/middleware/usage_metering.py db/migrations/004_api_usage.sql api/main.py
 git commit -m "feat(T-404): usage metering — per-tenant monthly quotas, 80% alert, 429 enforcement"
 ```
 
@@ -962,19 +962,19 @@ Self-hosted Grafana on the Hetzner VM with Prometheus metrics from FastAPI, Post
 | CREATE | `monitoring/grafana/provisioning/datasources/prometheus.yaml` |
 | CREATE | `monitoring/grafana/provisioning/dashboards/climate.json` |
 | CREATE | `monitoring/alert_rules.yml` |
-| CREATE | `backend/middleware/prometheus_metrics.py` |
+| CREATE | `api/middleware/prometheus_metrics.py` |
 | MODIFY | `docker-compose.yml` — add Prometheus + Grafana services |
-| MODIFY | `backend/main.py` — add /metrics endpoint |
+| MODIFY | `api/main.py` — add /metrics endpoint |
 
 ### Step 1 — Install Prometheus client
 
 ```bash
 pip install prometheus-client
-# Add to backend/requirements.txt:
+# Add to api/requirements.txt:
 # prometheus-client>=0.20.0
 ```
 
-### Step 2 — FastAPI Prometheus middleware `backend/middleware/prometheus_metrics.py`
+### Step 2 — FastAPI Prometheus middleware `api/middleware/prometheus_metrics.py`
 
 ```python
 import time
@@ -1018,7 +1018,7 @@ def metrics_endpoint():
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 ```
 
-Register in `backend/main.py`:
+Register in `api/main.py`:
 
 ```python
 from backend.middleware.prometheus_metrics import PrometheusMiddleware, metrics_endpoint
@@ -1205,7 +1205,7 @@ curl http://localhost:8000/metrics | grep http_requests_total
 ### Commit
 
 ```bash
-git add monitoring/ backend/middleware/prometheus_metrics.py backend/main.py docker-compose.yml
+git add monitoring/ api/middleware/prometheus_metrics.py api/main.py docker-compose.yml
 git commit -m "feat(T-405): production monitoring — Prometheus, Grafana, alert rules for latency/queue/agents"
 ```
 
@@ -1222,8 +1222,8 @@ Add vector embeddings to articles. Generate embeddings on ingest using the OpenA
 | Action | Path |
 |---|---|
 | CREATE | `db/migrations/005_pgvector.sql` |
-| CREATE | `backend/services/embeddings.py` |
-| MODIFY | `backend/routers/articles.py` — add semantic search mode |
+| CREATE | `api/services/embeddings.py` |
+| MODIFY | `api/routers/articles.py` — add semantic search mode |
 | MODIFY | `agents/analyst/main.py` — generate embedding after analysis |
 | CREATE | `scripts/backfill_embeddings.py` |
 | MODIFY | `frontend/src/components/ArticleSearch.tsx` — mode toggle |
@@ -1259,7 +1259,7 @@ psql $DATABASE_URL -f db/migrations/005_pgvector.sql
 > # Or from source: https://github.com/pgvector/pgvector
 > ```
 
-### Step 2 — Embeddings service `backend/services/embeddings.py`
+### Step 2 — Embeddings service `api/services/embeddings.py`
 
 ```python
 import os
@@ -1305,7 +1305,7 @@ article_text = f"{article['title']} {article['summary']} {article['content']}"
 await store_article_embedding(article["id"], article_text, conn)
 ```
 
-### Step 4 — Semantic search endpoint in `backend/routers/articles.py`
+### Step 4 — Semantic search endpoint in `api/routers/articles.py`
 
 Add `mode` query parameter to the existing `GET /articles/search` endpoint:
 
@@ -1471,7 +1471,7 @@ psql $DATABASE_URL -c "SELECT COUNT(*) FROM climate.articles WHERE embedding IS 
 ### Commit
 
 ```bash
-git add db/migrations/005_pgvector.sql backend/services/embeddings.py backend/routers/articles.py agents/analyst/main.py scripts/backfill_embeddings.py frontend/src/components/ArticleSearch.tsx
+git add db/migrations/005_pgvector.sql api/services/embeddings.py api/routers/articles.py agents/analyst/main.py scripts/backfill_embeddings.py frontend/src/components/ArticleSearch.tsx
 git commit -m "feat(T-406): pgvector semantic search — embeddings on ingest, search endpoint, backfill script"
 ```
 
