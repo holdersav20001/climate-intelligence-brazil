@@ -14,6 +14,7 @@ import httpx
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 AUTH_PROVIDER = os.environ.get("AUTH_PROVIDER", "local")
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "development")
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
 JWT_SECRET = os.environ.get("JWT_SECRET", "")
@@ -59,6 +60,11 @@ def _issue_local_token(email: str, tenant_id: str, countries: list[str]) -> str:
 @router.post("/login", response_model=TokenResponse)
 async def login(body: LoginRequest):
     if AUTH_PROVIDER == "local":
+        if ENVIRONMENT != "development":
+            raise HTTPException(
+                status_code=503,
+                detail="Local auth is only available in development. Set AUTH_PROVIDER=supabase for production.",
+            )
         # Local dev: look up tenant by email in the database
         from ..db import query
         rows = query(
@@ -102,6 +108,8 @@ async def login(body: LoginRequest):
 @router.post("/signup", status_code=201)
 async def signup(body: SignupRequest):
     if AUTH_PROVIDER == "local":
+        if ENVIRONMENT != "development":
+            raise HTTPException(status_code=503, detail="Local auth is only available in development.")
         from ..db import query, execute
         existing = query("SELECT id FROM tenants WHERE email = %s", (body.email,))
         if existing:
