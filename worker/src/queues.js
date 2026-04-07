@@ -36,7 +36,7 @@ export async function enqueueFetch(url, metadata = {}) {
   const job = await articleFetchQueue.add(
     'fetch',
     { url, metadata, enqueuedAt: new Date().toISOString() },
-    { jobId: `fetch:${Buffer.from(url).toString('base64url').slice(0, 40)}` }
+    { jobId: `fetch-${Buffer.from(url).toString('base64url').slice(0, 40)}` }
   );
   return job.id;
 }
