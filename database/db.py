@@ -309,7 +309,7 @@ class DB:
 
     def stats(self):
         tables = ["articles","contacts","findings","policies",
-                  "ngo_intel","finance_deals","reports","seen_urls","run_log"]
+                  "ngo_intel","finance_deals","sources","reports","seen_urls","run_log"]
         result = {}
         for t in tables:
             row = self._fetchone(f"SELECT COUNT(*) AS n FROM {t}")
