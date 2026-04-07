@@ -17,7 +17,7 @@ Use db.py to persist structured intelligence to PostgreSQL.
 The database URL is read automatically from $CLIMATE_DATABASE_URL.
 
 Write a finding:
-  python3 /paperclip/agents/db.py insert-finding '{"agent":"finance_monitor","priority":"HIGH","title":"...","body":"...","source_url":"..."}'
+  python3 /paperclip/agents/db.py insert-finding '{"agent":"finance_monitor","priority":"<CRITICAL|HIGH|COALITION|EVIDENCE|MEDIUM|LOW>","title":"...","body":"...","source_url":"..."}'
 
 Write an article:
   python3 /paperclip/agents/db.py insert-article '{"url":"...","title":"...","summary":"...","source_name":"..."}'

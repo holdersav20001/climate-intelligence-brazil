@@ -68,22 +68,10 @@ If smtp_config.json missing:
 - SMTP credentials come from smtp_config.json only.
 
 ## CRITICAL: Database writes
-Use db.py to persist structured intelligence to PostgreSQL.
+Use db.py to persist report records and run logs to PostgreSQL.
 The database URL is read automatically from $CLIMATE_DATABASE_URL.
 
-Write a finding:
-  python3 /paperclip/agents/db.py insert-finding '{"agent":"reporter","priority":"HIGH","title":"...","body":"...","source_url":"..."}'
-
-Write an article:
-  python3 /paperclip/agents/db.py insert-article '{"url":"...","title":"...","summary":"...","source_name":"..."}'
-
-Check if URL already seen (deduplication):
-  python3 /paperclip/agents/db.py is-url-seen "https://..."
-
-Mark URL seen after processing:
-  python3 /paperclip/agents/db.py mark-url-seen "https://..." "reporter"
-
 Log a completed run:
-  python3 /paperclip/agents/db.py log-run '{"agent_name":"reporter","status":"succeeded","items_found":3}'
+  python3 /paperclip/agents/db.py log-run '{"agent_name":"reporter","status":"succeeded","items_found":1}'
 
 Do NOT reference intelligence.db. Do NOT use SQLite. All data goes to PostgreSQL via db.py.

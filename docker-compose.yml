@@ -49,6 +49,7 @@ services:
     volumes:
       - paperclip_data:/paperclip
       - ./agents:/paperclip/agents:ro
+      - ./workspace:/paperclip/agents/workspace
     ports:
       - "3100:3100"
     depends_on:
