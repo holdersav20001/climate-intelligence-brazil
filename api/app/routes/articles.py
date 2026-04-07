@@ -18,6 +18,7 @@ def list_articles(
     topic: Optional[str] = None,
     verified: Optional[bool] = None,
     run_date: Optional[str] = None,
+    country: Optional[str] = None,
 ):
     filters = ["country_codes && %s::text[]"]
     params: list = [DEV_TENANT_COUNTRIES]
@@ -37,6 +38,9 @@ def list_articles(
     if run_date:
         filters.append("run_date = %s")
         params.append(run_date)
+    if country:
+        filters.append("country_codes @> %s::text[]")
+        params.append([country.upper()])
 
     where = " AND ".join(filters)
     offset = (page - 1) * page_size

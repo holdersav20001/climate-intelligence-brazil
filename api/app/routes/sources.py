@@ -1,5 +1,5 @@
 # api/app/routes/sources.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from ..models import SourceOut, PaginatedResponse
 from ..db import query, execute
 
@@ -9,7 +9,10 @@ DEV_TENANT_COUNTRIES = ["BR"]
 
 
 @router.get("", response_model=PaginatedResponse)
-def list_sources(page: int = 1, page_size: int = 50):
+def list_sources(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=500),
+):
     filters = ["country_code = ANY(%s::text[])"]
     params: list = [DEV_TENANT_COUNTRIES]
     where = " AND ".join(filters)
