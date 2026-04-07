@@ -400,7 +400,7 @@ def cli():
         print("inserted" if db.insert_article(json.loads(sys.argv[2])) else "exists")
     elif cmd == "insert-finding" and len(sys.argv) > 2:
         print(db.insert_finding(json.loads(sys.argv[2])))
-    elif cmd == "insert-contact" and len(sys.argv) > 2:
+    elif cmd in ("insert-contact", "upsert-contact") and len(sys.argv) > 2:
         print(db.upsert_contact(json.loads(sys.argv[2])))
     elif cmd == "insert-ngo-intel" and len(sys.argv) > 2:
         print(db.insert_ngo_intel(json.loads(sys.argv[2])))
