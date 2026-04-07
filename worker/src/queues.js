@@ -1,10 +1,6 @@
 // worker/src/queues.js
 import { Queue } from 'bullmq';
-
-const redisConnection = {
-  host: process.env.REDIS_HOST || 'redis',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-};
+import { redisConnection } from './redis.js';
 
 export const articleFetchQueue = new Queue('article-fetch', {
   connection: redisConnection,
@@ -20,7 +16,7 @@ export const articleAnalysisQueue = new Queue('article-analysis', {
   connection: redisConnection,
   defaultJobOptions: {
     attempts: 2,
-    backoff: { type: 'fixed', delay: 10000 },
+    backoff: { type: 'exponential', delay: 5000 },
     removeOnComplete: { count: 500 },
     removeOnFail: { count: 200 },
   },
@@ -30,7 +26,7 @@ export const articleVerifyQueue = new Queue('article-verify', {
   connection: redisConnection,
   defaultJobOptions: {
     attempts: 2,
-    backoff: { type: 'fixed', delay: 5000 },
+    backoff: { type: 'exponential', delay: 5000 },
     removeOnComplete: { count: 500 },
     removeOnFail: { count: 200 },
   },

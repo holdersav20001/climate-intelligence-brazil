@@ -1,11 +1,7 @@
 // worker/src/workers.js
 import { Worker } from 'bullmq';
 import { enqueueAnalysis, enqueueVerify } from './queues.js';
-
-const redisConnection = {
-  host: process.env.REDIS_HOST || 'redis',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-};
+import { redisConnection } from './redis.js';
 
 export function startFetchWorker() {
   const worker = new Worker(
@@ -20,7 +16,7 @@ export function startFetchWorker() {
         const analysisJobId = await enqueueAnalysis(articleId, url, metadata.scoutRunId);
         console.log(`[fetch] Enqueued analysis job ${analysisJobId} for article ${articleId}`);
       } else {
-        console.log(`[fetch] No articleId in metadata — article not yet in DB, skipping analysis enqueue`);
+        throw new Error(`No articleId in metadata for URL: ${url} — article must be written to DB before enqueuing`);
       }
 
       return { url, articleId, processedAt: new Date().toISOString() };
@@ -36,7 +32,7 @@ export function startFetchWorker() {
   });
 
   worker.on('failed', (job, err) => {
-    console.error(`[fetch] Job ${job?.id} failed: ${err.message}`);
+    console.error(`[fetch] Job ${job?.id} failed:`, err);
   });
 
   return worker;
@@ -49,6 +45,7 @@ export function startAnalysisWorker() {
       const { articleId, url, scoutRunId } = job.data;
       console.log(`[analysis] Processing article ${articleId}: ${url}`);
 
+      // TODO(Phase 2): replace with real Paperclip agent run ID from webhook callback
       const analystRunId = `worker-${Date.now()}`;
       const verifyJobId = await enqueueVerify(articleId, url, analystRunId);
       console.log(`[analysis] Enqueued verify job ${verifyJobId} for article ${articleId}`);
@@ -66,7 +63,7 @@ export function startAnalysisWorker() {
   });
 
   worker.on('failed', (job, err) => {
-    console.error(`[analysis] Job ${job?.id} failed: ${err.message}`);
+    console.error(`[analysis] Job ${job?.id} failed:`, err);
   });
 
   return worker;
@@ -92,7 +89,7 @@ export function startVerifyWorker() {
   });
 
   worker.on('failed', (job, err) => {
-    console.error(`[verify] Job ${job?.id} failed: ${err.message}`);
+    console.error(`[verify] Job ${job?.id} failed:`, err);
   });
 
   return worker;
