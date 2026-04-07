@@ -67,7 +67,7 @@ CREATE INDEX IF NOT EXISTS idx_sources_country ON sources(country_code);
 
 **Verify:**
 ```bash
-python3 database/db.py query "SELECT name FROM sqlite_master WHERE type='table' AND name='sources'"
+python3 database/db.py query "SELECT table_name FROM information_schema.tables WHERE table_schema='climate' AND table_name='sources'"
 ```
 Expected: `[{"name": "sources"}]`
 
@@ -351,7 +351,7 @@ ls agents/scout-discovery/AGENTS.md
 ls agents/scout-retrieval/AGENTS.md
 
 # Check sources table in schema
-python3 database/db.py query "SELECT name FROM sqlite_master WHERE type='table' AND name='sources'"
+python3 database/db.py query "SELECT table_name FROM information_schema.tables WHERE table_schema='climate' AND table_name='sources'"
 
 # Check insert-source command works
 python3 database/db.py insert-source '{"url":"https://agenciabrasil.ebc.gov.br/energia/feed/atom","name":"Agencia Brasil Energy","feed_type":"atom","status":"active","country_code":"BR","credibility_tier":"high"}'
@@ -647,7 +647,7 @@ Do not insert tags with confidence below 0.5.
 
 ```bash
 # Check tables were created
-python3 database/db.py query "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('tags','countries','article_tags','article_countries')"
+python3 database/db.py query "SELECT table_name FROM information_schema.tables WHERE table_schema='climate' AND table_name IN ('tags','countries','article_tags','article_countries') ORDER BY table_name"
 
 # Check seed data
 python3 database/db.py query "SELECT COUNT(*) as tag_count FROM tags"
@@ -821,7 +821,7 @@ python3 db.py link-finding-contact '{"finding_id":"<finding_id>","contact_id":"<
 
 ```bash
 # Check tables exist
-python3 database/db.py query "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('finding_articles','finding_contacts')"
+python3 database/db.py query "SELECT table_name FROM information_schema.tables WHERE table_schema='climate' AND table_name IN ('finding_articles','finding_contacts') ORDER BY table_name"
 
 # Test link commands (requires an existing finding_id and article_id)
 # Insert test finding first
@@ -1401,10 +1401,12 @@ Run these checks after all non-conditional tasks (T-201 through T-208) are compl
 
 ```bash
 # 1. Schema — all new tables exist
-python3 database/db.py query "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-# Expected: articles, article_countries, article_tags, contacts, finance_deals,
-#           finding_articles, finding_contacts, findings, ngo_intel, policies,
-#           reports, run_log, seen_urls, sources, tags, countries, alert_hashes
+python3 database/db.py query "SELECT table_name FROM information_schema.tables WHERE table_schema='climate' ORDER BY table_name"
+# Expected: alert_hashes, article_countries, article_tags, articles, contact_access,
+#           contact_countries, contact_tags, contacts, countries, finance_deals,
+#           finding_articles, finding_contacts, finding_countries, finding_tags,
+#           findings, ngo_intel, policies, reports, run_log, seen_urls,
+#           sources, tags, tenant_article_status, tenant_filters, tenants
 
 # 2. db.py — all new commands work
 python3 database/db.py insert-source '{"url":"https://verify-phase2.example.com","name":"Phase 2 Verify","status":"candidate","credibility_tier":"low"}' || echo "ok"

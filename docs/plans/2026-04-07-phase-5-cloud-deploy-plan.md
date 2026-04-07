@@ -1,4 +1,6 @@
-# Phase 0.5 Cloud Deploy Implementation Plan
+# Phase 5 — Cloud Deploy Implementation Plan
+
+> **Prerequisite:** Phases 0.5 through 4 complete and validated locally before executing this plan.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 

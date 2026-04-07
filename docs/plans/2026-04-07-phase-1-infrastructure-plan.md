@@ -1261,9 +1261,13 @@ git commit -m "feat(api): implement full FastAPI REST endpoints — articles, fi
 
 ## T-110: JWT Authentication
 
-**Why:** Every data endpoint must be scoped to a tenant. Supabase Auth issues JWTs; the API verifies the token on every request and extracts `tenant_id` from the claims. This replaces the hardcoded `DEV_TENANT_COUNTRIES = ["BR"]` with real per-tenant country filtering.
+**Why:** Every data endpoint must be scoped to a tenant. A JWT carries the `tenant_id`; the API verifies the token on every request and extracts it for filtering.
 
-**Decision:** Supabase Auth over Auth0 — see `decision_history.md`. Supabase is self-hostable, has a Python JWT library, and the `tenant_id` custom claim fits naturally in the JWT payload.
+**Local dev approach (use this first):** Use PyJWT with `JWT_SECRET` from `.env`. No external service needed. Set `AUTH_PROVIDER=local` in `.env`. The API issues and verifies tokens itself — sign-up writes to `climate.tenants`, login returns a signed token.
+
+**Cloud/production:** Swap to Supabase Auth by setting `AUTH_PROVIDER=supabase` and adding `SUPABASE_URL` + `SUPABASE_ANON_KEY` to `.env`. Supabase issues the JWT; the API verifies it using the Supabase public key. No code changes — only env var swap.
+
+**Decision:** Supabase Auth over Auth0 for production — see `decision_history.md`. But local dev never requires a cloud account.
 
 **Files to create/modify:**
 - Create: `api/app/auth.py` — JWT verification middleware + dependency
