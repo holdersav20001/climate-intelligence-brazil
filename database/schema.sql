@@ -1,100 +1,357 @@
-PRAGMA journal_mode=WAL;
-PRAGMA foreign_keys=ON;
+-- database/schema.sql
+-- PostgreSQL schema for Climate Intelligence Platform
+-- All tables in the `climate` schema.
+-- Applied automatically by docker-entrypoint-initdb.d on first `docker compose up`.
+
+SET search_path TO climate;
+
+-- ── Time-series tables (partitioned by month) ──────────────────────────────
 
 CREATE TABLE IF NOT EXISTS articles (
-    id TEXT PRIMARY KEY, url TEXT NOT NULL UNIQUE, title TEXT NOT NULL,
-    summary TEXT, source_name TEXT, domain TEXT, topic TEXT,
-    significance REAL, verified INTEGER DEFAULT 0,
-    sentiment_overall REAL, sentiment_environmental REAL, sentiment_economic REAL,
-    sentiment_political REAL, sentiment_social REAL, sentiment_framing REAL,
-    fetched_at TEXT NOT NULL, published_at TEXT, run_date TEXT NOT NULL,
-    scout_run_id TEXT, analyst_run_id TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
-);
-CREATE INDEX IF NOT EXISTS idx_articles_run_date ON articles(run_date DESC);
-CREATE INDEX IF NOT EXISTS idx_articles_domain ON articles(domain);
-CREATE INDEX IF NOT EXISTS idx_articles_significance ON articles(significance DESC);
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    url             TEXT NOT NULL UNIQUE,
+    title           TEXT NOT NULL,
+    summary         TEXT,
+    source_name     TEXT,
+    domain          TEXT,
+    topic           TEXT,
+    significance    FLOAT,
+    verified        BOOLEAN DEFAULT false,
+    sentiment_overall       FLOAT,
+    sentiment_environmental FLOAT,
+    sentiment_economic      FLOAT,
+    sentiment_political     FLOAT,
+    sentiment_social        FLOAT,
+    sentiment_framing       FLOAT,
+    country_codes   TEXT[] DEFAULT '{}',
+    tag_slugs       TEXT[] DEFAULT '{}',
+    language        TEXT DEFAULT 'en',
+    fetched_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    published_at    TIMESTAMPTZ,
+    run_date        DATE NOT NULL DEFAULT CURRENT_DATE,
+    scout_run_id    UUID,
+    analyst_run_id  UUID,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+) PARTITION BY RANGE (run_date);
 
-CREATE TABLE IF NOT EXISTS contacts (
-    id TEXT PRIMARY KEY, name TEXT NOT NULL, role TEXT NOT NULL,
-    organisation TEXT NOT NULL, organisation_type TEXT,
-    decision_power INTEGER, ngo_access INTEGER DEFAULT 1,
-    influence_score REAL, profile_url TEXT, contact_url TEXT, email TEXT,
-    policies_owned TEXT, why_relevant TEXT, source_url TEXT,
-    first_seen TEXT DEFAULT (datetime('now')),
-    last_updated TEXT DEFAULT (datetime('now')), notes TEXT
-);
-CREATE INDEX IF NOT EXISTS idx_contacts_power ON contacts(decision_power DESC);
-CREATE INDEX IF NOT EXISTS idx_contacts_score ON contacts(influence_score DESC);
+CREATE TABLE IF NOT EXISTS articles_default PARTITION OF articles DEFAULT;
+
+CREATE INDEX IF NOT EXISTS idx_articles_run_date   ON articles(run_date DESC);
+CREATE INDEX IF NOT EXISTS idx_articles_domain     ON articles(domain);
+CREATE INDEX IF NOT EXISTS idx_articles_significance ON articles(significance DESC);
+CREATE INDEX IF NOT EXISTS idx_articles_country    ON articles USING GIN(country_codes);
+CREATE INDEX IF NOT EXISTS idx_articles_tags       ON articles USING GIN(tag_slugs);
+
+-- Full-text search index (Phase 1)
+CREATE INDEX IF NOT EXISTS idx_articles_fts ON articles
+    USING GIN(to_tsvector('english', coalesce(title,'') || ' ' || coalesce(summary,'')));
 
 CREATE TABLE IF NOT EXISTS findings (
-    id TEXT PRIMARY KEY, paperclip_issue_id TEXT, agent TEXT NOT NULL,
-    priority TEXT NOT NULL, category TEXT, title TEXT NOT NULL, body TEXT NOT NULL,
-    source_url TEXT, source_name TEXT, action_required TEXT, deadline TEXT,
-    coalition_opportunity INTEGER DEFAULT 0, evidence_value TEXT,
-    fetched_at TEXT NOT NULL, run_date TEXT NOT NULL,
-    status TEXT DEFAULT 'open', created_at TEXT DEFAULT (datetime('now'))
-);
-CREATE INDEX IF NOT EXISTS idx_findings_priority ON findings(priority);
-CREATE INDEX IF NOT EXISTS idx_findings_run_date ON findings(run_date DESC);
+    id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    paperclip_issue_id   TEXT,
+    agent                TEXT NOT NULL,
+    priority             TEXT NOT NULL CHECK (priority IN ('CRITICAL','HIGH','COALITION','EVIDENCE','MEDIUM','LOW')),
+    category             TEXT,
+    title                TEXT NOT NULL,
+    body                 TEXT NOT NULL,
+    source_url           TEXT,
+    source_name          TEXT,
+    action_required      TEXT,
+    deadline             DATE,
+    coalition_opportunity BOOLEAN DEFAULT false,
+    evidence_value       TEXT,
+    country_codes        TEXT[] DEFAULT '{}',
+    tag_slugs            TEXT[] DEFAULT '{}',
+    status               TEXT DEFAULT 'open',
+    fetched_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    run_date             DATE NOT NULL DEFAULT CURRENT_DATE,
+    created_at           TIMESTAMPTZ DEFAULT NOW()
+) PARTITION BY RANGE (run_date);
 
-CREATE TABLE IF NOT EXISTS policies (
-    id TEXT PRIMARY KEY, title TEXT NOT NULL, body TEXT, url TEXT UNIQUE,
-    owner TEXT, status TEXT, consultation_open INTEGER DEFAULT 0,
-    consultation_deadline TEXT, relevance TEXT, ngo_position TEXT,
-    last_hash TEXT, last_checked TEXT,
-    first_seen TEXT DEFAULT (datetime('now')), created_at TEXT DEFAULT (datetime('now'))
-);
-CREATE INDEX IF NOT EXISTS idx_policies_status ON policies(status);
-CREATE INDEX IF NOT EXISTS idx_policies_consult ON policies(consultation_open, consultation_deadline);
+CREATE TABLE IF NOT EXISTS findings_default PARTITION OF findings DEFAULT;
+
+CREATE INDEX IF NOT EXISTS idx_findings_priority  ON findings(priority);
+CREATE INDEX IF NOT EXISTS idx_findings_run_date  ON findings(run_date DESC);
+CREATE INDEX IF NOT EXISTS idx_findings_country   ON findings USING GIN(country_codes);
 
 CREATE TABLE IF NOT EXISTS ngo_intel (
-    id TEXT PRIMARY KEY, organisation TEXT NOT NULL,
-    organisation_category TEXT NOT NULL, type TEXT, title TEXT NOT NULL,
-    summary TEXT, significance REAL, coalition_opportunity INTEGER DEFAULT 0,
-    evidence_value TEXT, counter_argument_needed INTEGER DEFAULT 0,
-    url TEXT, fetched_at TEXT NOT NULL, run_date TEXT NOT NULL,
-    created_at TEXT DEFAULT (datetime('now'))
-);
+    id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organisation             TEXT NOT NULL,
+    organisation_category    TEXT NOT NULL,
+    type                     TEXT,
+    title                    TEXT NOT NULL,
+    summary                  TEXT,
+    significance             FLOAT,
+    coalition_opportunity    BOOLEAN DEFAULT false,
+    evidence_value           TEXT,
+    counter_argument_needed  BOOLEAN DEFAULT false,
+    url                      TEXT,
+    fetched_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    run_date                 DATE NOT NULL DEFAULT CURRENT_DATE,
+    created_at               TIMESTAMPTZ DEFAULT NOW()
+) PARTITION BY RANGE (run_date);
+
+CREATE TABLE IF NOT EXISTS ngo_intel_default PARTITION OF ngo_intel DEFAULT;
+
 CREATE INDEX IF NOT EXISTS idx_ngo_intel_category ON ngo_intel(organisation_category);
 CREATE INDEX IF NOT EXISTS idx_ngo_intel_run_date ON ngo_intel(run_date DESC);
 
 CREATE TABLE IF NOT EXISTS finance_deals (
-    id TEXT PRIMARY KEY, institution TEXT NOT NULL, project_name TEXT,
-    amount_usd REAL, amount_brl REAL, currency_note TEXT,
-    deal_type TEXT, project_type TEXT, stage TEXT,
-    intervention_window TEXT, priority TEXT,
-    source_url TEXT, summary TEXT, recommended_action TEXT,
-    fetched_at TEXT NOT NULL, run_date TEXT NOT NULL,
-    created_at TEXT DEFAULT (datetime('now'))
-);
-CREATE INDEX IF NOT EXISTS idx_finance_type ON finance_deals(deal_type);
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    institution         TEXT NOT NULL,
+    project_name        TEXT,
+    amount_usd          FLOAT,
+    amount_brl          FLOAT,
+    currency_note       TEXT,
+    deal_type           TEXT,
+    project_type        TEXT,
+    stage               TEXT,
+    intervention_window TEXT,
+    priority            TEXT,
+    source_url          TEXT,
+    summary             TEXT,
+    recommended_action  TEXT,
+    country_codes       TEXT[] DEFAULT '{}',
+    fetched_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    run_date            DATE NOT NULL DEFAULT CURRENT_DATE,
+    created_at          TIMESTAMPTZ DEFAULT NOW()
+) PARTITION BY RANGE (run_date);
+
+CREATE TABLE IF NOT EXISTS finance_deals_default PARTITION OF finance_deals DEFAULT;
+
+CREATE INDEX IF NOT EXISTS idx_finance_type     ON finance_deals(deal_type);
 CREATE INDEX IF NOT EXISTS idx_finance_run_date ON finance_deals(run_date DESC);
 
 CREATE TABLE IF NOT EXISTS reports (
-    id TEXT PRIMARY KEY, title TEXT NOT NULL, subject TEXT,
-    body TEXT NOT NULL, report_type TEXT, run_date TEXT NOT NULL,
-    sent_at TEXT, email_status TEXT DEFAULT 'pending',
-    recipients TEXT, recipient_count INTEGER DEFAULT 0,
-    paperclip_issue TEXT, created_at TEXT DEFAULT (datetime('now'))
-);
-CREATE INDEX IF NOT EXISTS idx_reports_run_date ON reports(run_date DESC);
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title           TEXT NOT NULL,
+    subject         TEXT,
+    body            TEXT NOT NULL,
+    report_type     TEXT,
+    run_date        DATE NOT NULL DEFAULT CURRENT_DATE,
+    sent_at         TIMESTAMPTZ,
+    email_status    TEXT DEFAULT 'pending',
+    recipients      JSONB DEFAULT '[]',
+    recipient_count INTEGER DEFAULT 0,
+    paperclip_issue TEXT,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+) PARTITION BY RANGE (run_date);
 
-CREATE TABLE IF NOT EXISTS alert_hashes (
-    url TEXT PRIMARY KEY, hash TEXT, last_checked TEXT,
-    last_changed TEXT, check_count INTEGER DEFAULT 0, alert_count INTEGER DEFAULT 0
-);
+CREATE TABLE IF NOT EXISTS reports_default PARTITION OF reports DEFAULT;
+
+CREATE INDEX IF NOT EXISTS idx_reports_run_date ON reports(run_date DESC);
+CREATE INDEX IF NOT EXISTS idx_reports_type     ON reports(report_type);
 
 CREATE TABLE IF NOT EXISTS run_log (
-    id TEXT PRIMARY KEY, agent_name TEXT NOT NULL, agent_id TEXT,
-    status TEXT, started_at TEXT, finished_at TEXT, duration_sec INTEGER,
-    items_found INTEGER DEFAULT 0, items_created INTEGER DEFAULT 0,
-    cost_usd REAL, notes TEXT, created_at TEXT DEFAULT (datetime('now'))
-);
-CREATE INDEX IF NOT EXISTS idx_run_log_agent ON run_log(agent_name);
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    agent_name      TEXT NOT NULL,
+    agent_id        UUID,
+    status          TEXT,
+    started_at      TIMESTAMPTZ,
+    finished_at     TIMESTAMPTZ,
+    duration_sec    INTEGER,
+    items_found     INTEGER DEFAULT 0,
+    items_created   INTEGER DEFAULT 0,
+    cost_usd        FLOAT,
+    notes           TEXT,
+    run_date        DATE NOT NULL DEFAULT CURRENT_DATE,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+) PARTITION BY RANGE (run_date);
+
+CREATE TABLE IF NOT EXISTS run_log_default PARTITION OF run_log DEFAULT;
+
+CREATE INDEX IF NOT EXISTS idx_run_log_agent   ON run_log(agent_name);
 CREATE INDEX IF NOT EXISTS idx_run_log_started ON run_log(started_at DESC);
 
+-- ── Reference tables (permanent, never archived) ───────────────────────────
+
+CREATE TABLE IF NOT EXISTS countries (
+    code        TEXT PRIMARY KEY,   -- ISO 3166-1 alpha-2: BR, CO, DE...
+    name        TEXT NOT NULL,
+    region      TEXT,               -- south_america, europe, asia, africa, global
+    active      BOOLEAN DEFAULT true
+);
+
+CREATE TABLE IF NOT EXISTS tags (
+    slug        TEXT PRIMARY KEY,
+    category    TEXT NOT NULL,      -- sector, geography, actor_type, policy_stage, topic, urgency, company
+    label       TEXT NOT NULL,
+    description TEXT
+);
+
+CREATE TABLE IF NOT EXISTS sources (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    url             TEXT NOT NULL UNIQUE,
+    name            TEXT NOT NULL,
+    feed_url        TEXT,
+    country_code    TEXT REFERENCES countries(code),
+    sector          TEXT[] DEFAULT '{}',
+    source_type     TEXT,           -- rss | gdelt | hash_monitor | social
+    language        TEXT DEFAULT 'en',
+    fetch_frequency TEXT DEFAULT 'hourly',
+    active          BOOLEAN DEFAULT true,
+    status          TEXT DEFAULT 'active', -- active | candidate | rejected
+    reliability     FLOAT DEFAULT 0.8,
+    last_fetched    TIMESTAMPTZ,
+    last_successful TIMESTAMPTZ,
+    fail_count      INTEGER DEFAULT 0,
+    discovered_by   TEXT,           -- scout_discovery | manual | link_extraction
+    notes           TEXT,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_sources_active  ON sources(active, status);
+CREATE INDEX IF NOT EXISTS idx_sources_country ON sources(country_code);
+CREATE INDEX IF NOT EXISTS idx_sources_fetch   ON sources(last_fetched);
+
+CREATE TABLE IF NOT EXISTS contacts (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name                TEXT NOT NULL,
+    role                TEXT NOT NULL,
+    organisation        TEXT NOT NULL,
+    organisation_type   TEXT,
+    decision_power      INTEGER CHECK (decision_power BETWEEN 1 AND 5),
+    ngo_access          INTEGER DEFAULT 1 CHECK (ngo_access BETWEEN 1 AND 5),
+    influence_score     FLOAT,
+    profile_url         TEXT,
+    contact_url         TEXT,
+    email               TEXT,
+    policies_owned      JSONB DEFAULT '[]',
+    why_relevant        TEXT,
+    source_url          TEXT,
+    notes               TEXT,
+    first_seen          TIMESTAMPTZ DEFAULT NOW(),
+    last_updated        TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (name, organisation)
+);
+
+CREATE INDEX IF NOT EXISTS idx_contacts_power ON contacts(decision_power DESC);
+CREATE INDEX IF NOT EXISTS idx_contacts_score ON contacts(influence_score DESC);
+
+CREATE TABLE IF NOT EXISTS policies (
+    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title                   TEXT NOT NULL,
+    body                    TEXT,
+    url                     TEXT UNIQUE,
+    owner                   TEXT,
+    status                  TEXT,
+    consultation_open       BOOLEAN DEFAULT false,
+    consultation_deadline   DATE,
+    relevance               TEXT,
+    ngo_position            TEXT,
+    last_hash               TEXT,
+    last_checked            TIMESTAMPTZ,
+    first_seen              TIMESTAMPTZ DEFAULT NOW(),
+    created_at              TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_policies_status   ON policies(status);
+CREATE INDEX IF NOT EXISTS idx_policies_consult  ON policies(consultation_open, consultation_deadline);
+
+CREATE TABLE IF NOT EXISTS tenants (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name            TEXT NOT NULL,
+    email           TEXT NOT NULL UNIQUE,
+    plan            TEXT DEFAULT 'starter' CHECK (plan IN ('starter','pro','enterprise')),
+    country_limit   INTEGER DEFAULT 1,
+    countries       TEXT[] DEFAULT '{}',
+    active          BOOLEAN DEFAULT true,
+    stripe_customer TEXT,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS alert_hashes (
+    url             TEXT PRIMARY KEY,
+    hash            TEXT,
+    last_checked    TIMESTAMPTZ,
+    last_changed    TIMESTAMPTZ,
+    check_count     INTEGER DEFAULT 0,
+    alert_count     INTEGER DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS seen_urls (
-    url TEXT PRIMARY KEY, first_seen_by TEXT,
-    first_seen_at TEXT DEFAULT (datetime('now'))
+    url             TEXT PRIMARY KEY,
+    first_seen_by   TEXT,
+    first_seen_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ── Junction tables ────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS article_countries (
+    article_id  UUID REFERENCES articles(id) ON DELETE CASCADE,
+    country_code TEXT REFERENCES countries(code),
+    PRIMARY KEY (article_id, country_code)
+);
+
+CREATE TABLE IF NOT EXISTS article_tags (
+    article_id  UUID REFERENCES articles(id) ON DELETE CASCADE,
+    tag_slug    TEXT REFERENCES tags(slug),
+    confidence  FLOAT DEFAULT 0.7,
+    PRIMARY KEY (article_id, tag_slug)
+);
+
+CREATE TABLE IF NOT EXISTS contact_countries (
+    contact_id   UUID REFERENCES contacts(id) ON DELETE CASCADE,
+    country_code TEXT REFERENCES countries(code),
+    PRIMARY KEY (contact_id, country_code)
+);
+
+CREATE TABLE IF NOT EXISTS contact_tags (
+    contact_id  UUID REFERENCES contacts(id) ON DELETE CASCADE,
+    tag_slug    TEXT REFERENCES tags(slug),
+    PRIMARY KEY (contact_id, tag_slug)
+);
+
+CREATE TABLE IF NOT EXISTS finding_countries (
+    finding_id   UUID REFERENCES findings(id) ON DELETE CASCADE,
+    country_code TEXT REFERENCES countries(code),
+    PRIMARY KEY (finding_id, country_code)
+);
+
+CREATE TABLE IF NOT EXISTS finding_tags (
+    finding_id  UUID REFERENCES findings(id) ON DELETE CASCADE,
+    tag_slug    TEXT REFERENCES tags(slug),
+    PRIMARY KEY (finding_id, tag_slug)
+);
+
+-- ── Cross-reference tables ─────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS finding_articles (
+    finding_id  UUID REFERENCES findings(id) ON DELETE CASCADE,
+    article_id  UUID REFERENCES articles(id) ON DELETE CASCADE,
+    PRIMARY KEY (finding_id, article_id)
+);
+
+CREATE TABLE IF NOT EXISTS finding_contacts (
+    finding_id  UUID REFERENCES findings(id) ON DELETE CASCADE,
+    contact_id  UUID REFERENCES contacts(id) ON DELETE CASCADE,
+    PRIMARY KEY (finding_id, contact_id)
+);
+
+-- ── Tenant-specific tables ─────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS contact_access (
+    tenant_id   UUID REFERENCES tenants(id) ON DELETE CASCADE,
+    contact_id  UUID REFERENCES contacts(id) ON DELETE CASCADE,
+    ngo_access  INTEGER DEFAULT 1 CHECK (ngo_access BETWEEN 1 AND 5),
+    notes       TEXT,
+    updated_at  TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (tenant_id, contact_id)
+);
+
+CREATE TABLE IF NOT EXISTS tenant_filters (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id   UUID REFERENCES tenants(id) ON DELETE CASCADE,
+    name        TEXT NOT NULL,
+    countries   TEXT[] DEFAULT '{}',
+    tags        TEXT[] DEFAULT '{}',
+    created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS tenant_article_status (
+    tenant_id   UUID REFERENCES tenants(id) ON DELETE CASCADE,
+    article_id  UUID REFERENCES articles(id) ON DELETE CASCADE,
+    status      TEXT DEFAULT 'unread' CHECK (status IN ('unread','read','saved','actioned')),
+    updated_at  TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (tenant_id, article_id)
 );
