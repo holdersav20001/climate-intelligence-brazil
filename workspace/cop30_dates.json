@@ -1,0 +1,50 @@
+{
+  "cop30_dates": {
+    "event": "COP30 (completed)",
+    "dates": "2025-11-10 to 2025-11-22",
+    "location": "Belem, Para, Brazil",
+    "outcome": "Belem Package adopted (56 decisions)"
+  },
+  "cop31_dates": {
+    "event": "COP31",
+    "dates": "2026-11 (exact TBD)",
+    "location": "Turkey"
+  },
+  "key_deadlines": [
+    {
+      "date": "2026-04-10",
+      "event": "COP30 Presidency Fossil Fuel Roadmap Submission Deadline",
+      "email": "COP30-TAFF-Roadmap@unfccc.int",
+      "status": "URGENT - 3 days",
+      "source": "https://cop30.br/en/unfccc-announces-cop30-presidency-consultations-on-roadmaps"
+    },
+    {
+      "date": "2026-04-10",
+      "event": "COP30 Presidency Deforestation Roadmap Submission Deadline",
+      "email": "COP30-Forest-Roadmap@unfccc.int",
+      "status": "URGENT - 3 days",
+      "source": "https://cop30.br/en/unfccc-announces-cop30-presidency-consultations-on-roadmaps"
+    },
+    {
+      "date": "2026-04-28",
+      "event": "First International Conference on Fossil Fuel Phase-Out (Day 1)",
+      "location": "Santa Marta, Colombia",
+      "status": "21 days away",
+      "source": "https://www.fossilfueltreaty.org/cop30-conference"
+    },
+    {
+      "date": "2026-04-29",
+      "event": "First International Conference on Fossil Fuel Phase-Out (Day 2)",
+      "location": "Santa Marta, Colombia"
+    },
+    {
+      "date": "2026-06-08",
+      "event": "SB64 Bonn Intersessional Start",
+      "location": "World Conference Center Bonn, Germany",
+      "end_date": "2026-06-18",
+      "registration": "Open since 2026-02-09",
+      "source": "https://unfccc.int/sb64"
+    }
+  ],
+  "last_updated": "2026-04-07"
+}

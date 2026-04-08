@@ -43,13 +43,18 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       CLIMATE_DATABASE_URL: ${CLIMATE_DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      PAPERCLIP_AGENT_JWT_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_TRUSTED_ORIGINS: ${BETTER_AUTH_TRUSTED_ORIGINS:-http://localhost:3100,http://127.0.0.1:3100}
       PAPERCLIP_PUBLIC_URL: ${PAPERCLIP_PUBLIC_URL}
+      # OpenCode + LM Studio (local models via opencode_local adapter)
+      OPENAI_API_BASE: ${OPENAI_API_BASE:-http://host.docker.internal:1234/v1}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-lm-studio}
     volumes:
       - paperclip_data:/paperclip
-      - ./agents:/paperclip/agents:ro
+      - ./agents:/paperclip/agents
       - ./workspace:/paperclip/agents/workspace
+      - claude_credentials:/paperclip/.claude
     ports:
       - "3100:3100"
     depends_on:
@@ -103,3 +108,4 @@ volumes:
   postgres_data:
   redis_data:
   paperclip_data:
+  claude_credentials:

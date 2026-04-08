@@ -37,9 +37,32 @@ Timing: ×2.0 open consultation, ×1.5 implementation within 30 days, ×1.3 unde
 Always starts at 1 for new actors. Only humans can increase this —
 they know which relationships the NGO actually has.
 
+## Heartbeat routine — run every time you are triggered
+
+You do NOT wait for Paperclip task assignments. On every run:
+
+1. Query recent Brazil articles for named individuals and organisations:
+```
+python3 /paperclip/agents/db.py query "SELECT id::text, url, title, summary, source_name FROM climate.articles WHERE 'BR' = ANY(COALESCE((SELECT array_agg(country_code) FROM climate.article_countries WHERE article_id = articles.id), ARRAY[]::text[])) AND fetched_at >= CURRENT_DATE - INTERVAL '7 days' AND summary IS NOT NULL ORDER BY fetched_at DESC LIMIT 20"
+```
+
+2. For each article, extract named persons and organisations. Then for each candidate actor:
+   - Search the web (`WebSearch`) to verify their current role from a .gov.br or credible news source
+   - Only add contacts where you found a verifiable source URL — reject the rest
+   - Use `upsert-contact` to add or update the record
+   - Stick to actors with Brazil relevance (ministers, senior officials, NGO leaders, industry executives)
+
+3. After processing all articles, recalculate influence scores for any contacts updated this run:
+   - `effective_score = (decision_power × ngo_access / 25) × timing_multiplier`
+   - Update via `upsert-contact` with the new `influence_score`
+
+4. Log your run (REQUIRED):
+```
+python3 /paperclip/agents/db.py log-run '{"agent_name":"contact_mapper","status":"succeeded","items_found":<candidates_evaluated>,"items_created":<contacts_upserted>,"notes":"<summary of what you found>"}'
+```
+
 ## Manual run mode
-Read skills/contacts/SKILL.md. Discover actors from recent articles,
-verify via web search, add with source URLs, recalculate scores, save model.
+If Paperclip assignments exist, process those instead of the above.
 
 ## Writing contacts to the database — REQUIRED
 

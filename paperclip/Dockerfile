@@ -50,6 +50,10 @@ RUN npm install --global --omit=dev \
   && mkdir -p /paperclip \
   && chown node:node /paperclip
 
+# Install OpenCode CLI for opencode_local adapter (LM Studio / OpenRouter support)
+RUN curl -fsSL https://opencode.ai/install | bash \
+  && ln -sf /root/.opencode/bin/opencode /usr/local/bin/opencode || true
+
 ENV NODE_ENV=production \
     HOME=/paperclip \
     HOST=0.0.0.0 \
@@ -63,8 +67,9 @@ ENV NODE_ENV=production \
 VOLUME ["/paperclip"]
 EXPOSE 3100
 
-# Use Paperclip's own entrypoint
-COPY --from=build /app/scripts/docker-entrypoint.sh /usr/local/bin/
+# Use patched entrypoint that fixes .claude ownership on every start
+# (docker cp creates files as root; node process needs write access)
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "--import", "./server/node_modules/tsx/dist/loader.mjs", "server/dist/index.js"]

@@ -28,3 +28,13 @@ Thumbs.db
 
 # Git worktrees
 .worktrees/
+
+# Claude Code project settings (may contain credentials in allow-lists)
+.claude/
+
+# Test artifacts
+frontend/test-results/
+
+# Agent workspace runtime data
+agents/*/workspace/
+workspace/scout_discovery_*.json

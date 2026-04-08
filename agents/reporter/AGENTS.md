@@ -56,8 +56,36 @@ length, and what never to do.
 After completing every report, read EMAIL_DELIVERY.md and send the report
 by email to all recipients in the mailing list. No exceptions.
 
+## Heartbeat routine — run every time you are triggered
+
+You do NOT wait for Paperclip task assignments. On every run:
+
+1. Query today's CRITICAL and HIGH findings from the database:
+```
+python3 /paperclip/agents/db.py query "SELECT id::text, agent, priority, title, body, source_url, source_name, action_required, deadline::text FROM climate.findings WHERE priority IN ('CRITICAL','HIGH','COALITION') AND status = 'open' AND run_date >= CURRENT_DATE - INTERVAL '7 days' ORDER BY CASE priority WHEN 'CRITICAL' THEN 1 WHEN 'COALITION' THEN 2 WHEN 'HIGH' THEN 3 END, run_date DESC"
+```
+
+2. Check if a report already exists for each finding (skip duplicates):
+```
+python3 /paperclip/agents/db.py query "SELECT title FROM climate.reports WHERE run_date >= CURRENT_DATE - INTERVAL '7 days'"
+```
+
+3. Write a brief for each finding not already reported, using the Brief format below.
+
+4. After all briefs are written, compile a Daily Digest:
+   - Group by: COP30 & Policy, Finance & Investment, NGO & Civil Society
+   - 1 paragraph per finding, prioritised CRITICAL → COALITION → HIGH
+   - Subject line: "Brazil Climate Intelligence — [date]"
+
+5. Save each brief and the digest to the database and send by email.
+
+6. Mark processed findings as 'reported':
+```
+python3 /paperclip/agents/db.py query "UPDATE climate.findings SET status = 'reported' WHERE id = '<finding_id>'"
+```
+
 ## Manual run mode
-Read skills/writing/SKILL.md. Process assigned tasks.
+If Paperclip assignments exist, process those instead of the above.
 Save output to workspace/pending_review/ and create board review task.
 
 ## MANDATORY: Write every report to the database
