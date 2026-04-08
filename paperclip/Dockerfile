@@ -51,8 +51,17 @@ RUN npm install --global --omit=dev \
   && chown node:node /paperclip
 
 # Install OpenCode CLI for opencode_local adapter (LM Studio / OpenRouter support)
+# Copy binary to /usr/local/bin (not symlink) so non-root users can execute it.
+# /root is 700 — a symlink into /root/.opencode/bin is inaccessible to the node user.
 RUN curl -fsSL https://opencode.ai/install | bash \
-  && ln -sf /root/.opencode/bin/opencode /usr/local/bin/opencode || true
+  && cp /root/.opencode/bin/opencode /usr/local/bin/opencode \
+  && chmod +x /usr/local/bin/opencode \
+  && npm install --global @ai-sdk/openai-compatible
+
+# Bake OpenCode LM Studio config into image at a non-volume path.
+# The entrypoint copies this to /paperclip/.config/opencode/ (inside the volume) if absent.
+RUN mkdir -p /etc/opencode \
+  && printf '{\n  "$schema": "https://opencode.ai/config.json",\n  "provider": {\n    "lmstudio": {\n      "npm": "@ai-sdk/openai-compatible",\n      "name": "LM Studio",\n      "options": {\n        "baseURL": "http://host.docker.internal:1234/v1"\n      },\n      "models": {\n        "qwen3-coder-next": {\n          "name": "Qwen3 Coder Next",\n          "limit": {"context": 32768, "output": 8192}\n        }\n      }\n    }\n  }\n}\n' > /etc/opencode/config.json
 
 ENV NODE_ENV=production \
     HOME=/paperclip \

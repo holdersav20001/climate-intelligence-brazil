@@ -32,4 +32,18 @@ if [ -d /paperclip/.claude ]; then
     chown -R node:node /paperclip/.claude
 fi
 
+# Fix OpenCode data/state dir ownership — opencode.db (SQLite) and lock files must be
+# writable by node. These dirs are created by root on first run; node needs write access.
+if [ -d /paperclip/.local ]; then
+    chown -R node:node /paperclip/.local
+fi
+
+# Seed OpenCode config from image default if not already present in volume.
+# HOME=/paperclip, so OpenCode looks for config at /paperclip/.config/opencode/config.json.
+if [ ! -f /paperclip/.config/opencode/config.json ]; then
+    mkdir -p /paperclip/.config/opencode
+    cp /etc/opencode/config.json /paperclip/.config/opencode/config.json
+    chown -R node:node /paperclip/.config
+fi
+
 exec gosu node "$@"
