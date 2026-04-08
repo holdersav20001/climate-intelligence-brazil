@@ -231,7 +231,7 @@ class DB:
                     ON CONFLICT (url) DO NOTHING""", (
                     row_id, s.get("url"), s.get("name"),
                     s.get("feed_type", "rss"),
-                    s.get("status", "candidate"),
+                    s.get("status", "active"),
                     s.get("country_code"), s.get("language", "en"),
                     s.get("discovered_by", "manual"),
                     s.get("credibility_tier", "medium"),

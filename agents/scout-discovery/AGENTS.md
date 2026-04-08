@@ -86,13 +86,42 @@ For each article URL: fetch the page and extract all outbound links (href attrib
 Filter to links that look like news articles or feeds (contain /feed, /rss, .xml, or are from news domains).
 
 ## Credibility scoring
-Score each discovered domain before inserting:
-- HIGH: .gov, .gov.br, .gov.co, .gov.ar, .gov.cl, .gov.uk, .bmwk.de, known publishers
+
+**Geographic relevance check first:** Before scoring credibility, ask — does this source cover
+Brazil energy policy, South American energy, or international climate/energy that affects Brazil?
+If NO clear connection to Brazil or the platform's coverage areas: **reject as LOW regardless of credibility tier**.
+Do not insert US state government sites, local US news, unrelated industry verticals, etc.
+
+Score each domain:
+- HIGH: Government domains from covered countries (.gov.br, .gov.co, .gov.ar, .gov.cl, .gov.uk, .bmwk.de)
+  plus known international bodies and specialist publishers:
   (agenciabrasil.ebc.gov.br, valor.globo.com, brazilenergyinsight.com, cleanenergywire.org,
   euractiv.com, iea.org, irena.org, unfccc.int, bndes.gov.br, petrobras.com.br,
-  aneel.gov.br, anp.gov.br, epe.gov.br, mme.gov.br, ibama.gov.br, cop30.gov.br)
-- MEDIUM: established news organisations, industry publications, think tanks
-- LOW: blogs, social media aggregators, unknown domains, domains with ads-heavy patterns
+  aneel.gov.br, anp.gov.br, epe.gov.br, mme.gov.br, ibama.gov.br, cop30.gov.br,
+  worldbank.org, imf.org, un.org, ipcc.ch)
+- MEDIUM: established news organisations with demonstrable Brazil/LatAm/energy coverage,
+  industry publications, think tanks focused on energy transition or Latin America
+- LOW: any domain without clear Brazil/energy relevance, blogs, aggregators, social media,
+  US state/local government sites, domains unrelated to the platform's coverage areas
+
+## Quality gates — apply before inserting any source
+
+### Gate 1 — No bare homepages
+The URL must point to a feed or a dedicated content section, not a site root.
+**Reject** if the URL path is `/` or empty (e.g. `https://example.com` or `https://example.com/`).
+**Prefer** URLs containing `/feed`, `/rss`, `/atom`, `.xml`, `/news`, `/noticias`, `/press`, `/sala-de-imprensa`.
+If a domain has no discoverable feed URL, do not insert it — log as "no feed found: <domain>".
+
+### Gate 2 — Energy relevance
+The source name, domain, or URL path must have a clear connection to energy, climate, or the platform's coverage areas.
+**Reject** sources that cover only general news with no energy specialisation — even if they occasionally mention energy.
+**Accept** sources where energy/climate/environment is a primary beat:
+- Government energy ministries and regulators (MME, ANEEL, ANP, EPE, IBAMA, BMWK, DESNZ, IEA, IRENA)
+- Specialist publishers (brazilenergyinsight.com, cleanenergywire.org, epbr.com.br, canalenergia.com.br, carbon brief, euractiv energy)
+- Major Brazilian outlets with dedicated energy sections (valor.globo.com/energia, agenciabrasil.ebc.gov.br/energia)
+- International bodies covering climate/energy (unfccc.int, worldbank.org/energy, ipcc.ch)
+
+**Do NOT insert** general portals (uol.com.br, terra.com.br), entertainment, sports, health, or local/municipal news sites even if they are from Brazil.
 
 ## Deduplication before inserting
 For each candidate URL, check if it is already known:
@@ -102,11 +131,11 @@ python3 /paperclip/agents/db.py query "SELECT 1 FROM sources WHERE url='<url>' L
 If result is non-empty: skip. Do not insert duplicates.
 
 ## Inserting new candidates
-Only insert if: credibility_tier is HIGH or MEDIUM.
+Only insert if: passed both quality gates AND credibility_tier is HIGH or MEDIUM.
 Do NOT insert LOW credibility sources — log them in your run notes instead.
 
 ```
-python3 /paperclip/agents/db.py insert-source '{"url":"<feed_url>","name":"<publication_name>","feed_type":"rss","status":"candidate","country_code":"BR","discovered_by":"link_extraction","credibility_tier":"high"}'
+python3 /paperclip/agents/db.py insert-source '{"url":"<feed_url>","name":"<publication_name>","feed_type":"rss","country_code":"BR","discovered_by":"link_extraction","credibility_tier":"high"}'
 ```
 
 Valid values for `discovered_by`: `gdelt`, `google_news_rss`, `link_extraction`, `manual`
@@ -114,10 +143,18 @@ Valid values for `feed_type`: `rss`, `atom`, `gdelt`, `google_news`, `html`
 Valid values for `country_code`: ISO 3166-1 alpha-2 (BR, CO, AR, CL, DE, GB, ES, FR)
 
 ## End of run
-Log your run with items_found = number of new candidates inserted:
+
+**Step 1: Log the run**
 ```
 python3 /paperclip/agents/db.py log-run '{"agent_name":"scout_discovery","status":"succeeded","items_found":<N>,"notes":"<summary of what was found>"}'
 ```
+
+**Step 2: Notify orchestrator**
+After logging, create a Paperclip issue assigned to the orchestrator to trigger the next pipeline stage:
+- Title: `Scout Discovery complete — <N> new sources added`
+- Body: Summary of what was found. State how many active sources are now in the DB. Ask orchestrator to trigger scout-retrieval if sources > 0.
+- Priority: medium
+- Assign to: orchestrator (agent ID: 5999ded3-8bb6-4d30-a469-2c3df0e0727b)
 
 ## What you do NOT do
 - Do NOT fetch article content
@@ -127,9 +164,24 @@ python3 /paperclip/agents/db.py log-run '{"agent_name":"scout_discovery","status
 - Do NOT re-insert known sources
 
 ## CRITICAL: File paths
-Workspace: /paperclip/agents/workspace
+Paperclip assigns you a workspace at run start. Write all files using **relative paths** within that workspace — never absolute paths.
 
-## Paperclip --resume flag
-Hermes memory requires the `--resume` flag when starting this agent.
-If you see no memories at run start, this flag may not be set.
-Ask the platform operator to check: Settings → Agents → Scout Discovery → Advanced → Additional flags: `--resume`
+At the end of every run, write a JSON summary using the relative filename:
+`scout_discovery_<YYYY-MM-DD>.json`
+where `<YYYY-MM-DD>` is today's date (e.g. `scout_discovery_2026-04-08.json`).
+
+Example structure:
+```json
+{
+  "run_date": "2026-04-08",
+  "agent": "scout_discovery",
+  "status": "succeeded",
+  "methods_run": ["gdelt_doc_api", "google_news_rss_br_en", "..."],
+  "total_domains_discovered": 0,
+  "candidates_evaluated": 0,
+  "total_inserted": 0
+}
+```
+
+Write this file BEFORE calling `log-run`. The `filePath` must always be a non-empty string — never a variable that could be undefined.
+

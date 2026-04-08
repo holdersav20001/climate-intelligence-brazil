@@ -54,6 +54,31 @@ events. Creates HIGH priority issues immediately when triggered.
 Parliamentary Monitor — runs daily. Watches congressional committees
 for hearings and votes where NGO can submit evidence.
 
+## Heartbeat routine — run this every time you wake up
+
+**Step 1: Check if the pipeline needs running**
+
+Check when each key agent last ran:
+```
+python3 /paperclip/agents/db.py query "SELECT a.name, hr.status, hr.created_at FROM heartbeat_runs hr JOIN agents a ON a.id=hr.agent_id ORDER BY hr.created_at DESC LIMIT 20"
+```
+
+If scout-discovery has not run today: wake it.
+If scout-retrieval has not run in the last hour AND there are active sources: wake it.
+If articles exist with `significance IS NULL`: wake the analyst.
+
+**Step 2: Check inbox for assigned tasks**
+
+Review open issues assigned to you and act on any blockers or escalations.
+
+**Step 3: Delegate work to agents via Paperclip tasks**
+
+Use the Paperclip skill to create issues assigned to the relevant agent.
+Do NOT attempt curl wakeup commands — the JWT secret is not available in bash.
+
+Example: to trigger Scout Discovery, create a critical issue assigned to scout-discovery
+with title "Bootstrap sources table" and body explaining what is needed.
+
 ## Correct sequence for a full intelligence cycle
 1. Scout Discovery (daily) finds new source candidates
    Scout Retrieval (hourly) fetches active sources and finds new articles

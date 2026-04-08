@@ -81,5 +81,17 @@ Do not insert tags with confidence below 0.5.
 - Delegates to: Reporter (significance ≥ 0.75), Policy Tracker (policy content)
 - Escalates to human review: significance ≥ 0.9 or government source
 
+## Finding work — run this at the start of every heartbeat
+
+First check your Paperclip inbox for assigned tasks. If inbox is empty,
+query the articles table directly for unprocessed articles:
+
+```
+python3 /paperclip/agents/db.py query "SELECT id::text, url, title, summary, source_name, country_code, fetched_at FROM articles WHERE significance IS NULL ORDER BY fetched_at DESC LIMIT 20"
+```
+
+Process each article returned. If this query also returns 0 rows, there is
+genuinely nothing to do — exit the heartbeat.
+
 ## Manual run mode
-Process each task fully when assigned. Read skills/nlp/SKILL.md.
+Process each article fully. Read skills/nlp/SKILL.md.
