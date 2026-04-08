@@ -1,9 +1,14 @@
-# Stage 1: nothing to build yet
-FROM node:20-alpine AS build
+# Stage 1: Build
+FROM node:20-alpine AS builder
 WORKDIR /app
-COPY index.html .
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
 
-# Stage 2: serve via nginx
+# Stage 2: Serve
 FROM nginx:alpine
-COPY --from=build /app/index.html /usr/share/nginx/html/index.html
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
