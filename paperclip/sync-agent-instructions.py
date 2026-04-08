@@ -78,8 +78,17 @@ for agent in agents:
     needs_db_update = ac.get("instructionsBundleMode") != "managed"
 
     if needs_copy:
-        shutil.copy2(external_path, managed_path)
-        print(f"[sync-instructions] {name}: synced {external_size}b", flush=True)
+        # Read and normalise to CRLF — Paperclip UI's markdown/frontmatter parser
+        # expects CRLF line endings; files from the Linux volume mount arrive as LF.
+        with open(external_path, "rb") as f:
+            content = f.read()
+        content = content.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+        with open(managed_path, "wb") as f:
+            f.write(content)
+        # Preserve timestamps
+        times = os.stat(external_path)
+        os.utime(managed_path, (times.st_atime, times.st_mtime))
+        print(f"[sync-instructions] {name}: synced {len(content)}b (CRLF)", flush=True)
         copied += 1
 
     if needs_db_update:
