@@ -79,6 +79,7 @@ EXPOSE 3100
 # Use patched entrypoint that fixes .claude ownership on every start
 # (docker cp creates files as root; node process needs write access)
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+COPY sync-agent-instructions.py /usr/local/bin/sync-agent-instructions.py
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/sync-agent-instructions.py
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "--import", "./server/node_modules/tsx/dist/loader.mjs", "server/dist/index.js"]

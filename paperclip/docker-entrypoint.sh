@@ -46,4 +46,9 @@ if [ ! -f /paperclip/.config/opencode/config.json ]; then
     chown -R node:node /paperclip/.config
 fi
 
+# Sync agent instructions from external AGENTS.md files into Paperclip's managed
+# instruction paths so the UI shows the correct content rather than the generic
+# placeholder created at agent setup time.
+python3 /usr/local/bin/sync-agent-instructions.py || true
+
 exec gosu node "$@"
