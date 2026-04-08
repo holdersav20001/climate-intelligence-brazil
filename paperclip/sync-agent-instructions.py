@@ -3,9 +3,14 @@
 Sync agent instructions: copy each agent's external AGENTS.md into its
 Paperclip-managed instructions path so the UI shows the correct content.
 
+Also ensures instructionsBundleMode is set to "managed" (not "external")
+so the Paperclip UI renders the file inline rather than treating it as
+an opaque external reference.
+
 Run at container startup (before the node process). Fails silently so it
 never blocks the server from starting.
 """
+import json
 import os
 import shutil
 import sys
@@ -36,7 +41,6 @@ cur.execute("""
     WHERE adapter_config IS NOT NULL
 """)
 agents = cur.fetchall()
-conn.close()
 
 copied = 0
 skipped = 0
@@ -62,17 +66,36 @@ for agent in agents:
         skipped += 1
         continue
 
-    # Only copy if external file is newer or managed file is the generic placeholder
+    # Copy if managed file is the generic placeholder or external file is newer
     managed_size = os.path.getsize(managed_path) if os.path.isfile(managed_path) else 0
     external_size = os.path.getsize(external_path)
     external_mtime = os.path.getmtime(external_path)
     managed_mtime = os.path.getmtime(managed_path) if os.path.isfile(managed_path) else 0
 
-    if managed_size <= 400 or external_mtime > managed_mtime:
+    needs_copy = managed_size <= 400 or external_mtime > managed_mtime
+
+    # Ensure bundle mode is "managed" so the UI renders content inline
+    needs_db_update = ac.get("instructionsBundleMode") != "managed"
+
+    if needs_copy:
         shutil.copy2(external_path, managed_path)
         print(f"[sync-instructions] {name}: synced {external_size}b", flush=True)
         copied += 1
-    else:
+
+    if needs_db_update:
+        ac["instructionsBundleMode"] = "managed"
+        ac["instructionsRootPath"] = managed_dir
+        update_cur = conn.cursor()
+        update_cur.execute(
+            "UPDATE public.agents SET adapter_config=%s, updated_at=NOW() WHERE id=%s",
+            (json.dumps(ac), agent_id)
+        )
+        print(f"[sync-instructions] {name}: set bundleMode=managed", flush=True)
+
+    if not needs_copy and not needs_db_update:
         skipped += 1
+
+conn.commit()
+conn.close()
 
 print(f"[sync-instructions] done — {copied} synced, {skipped} skipped", flush=True)
